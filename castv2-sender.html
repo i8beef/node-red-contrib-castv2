@@ -1,0 +1,36 @@
+<script type="text/javascript">
+    RED.nodes.registerType('castv2-sender', {
+        category: 'function',
+        color: '#a6bbcf',
+        defaults: {
+            name: {value:""},
+            host: {value:""}
+        },
+        inputs:1,
+        outputs:1,
+        icon: "file.png",
+        label: function() {
+            return this.name || "castv2-sender";
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="castv2-sender">
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-host">IP</label>
+        <input type="text" id="node-input-host" placeholder="0.0.0.0">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="castv2-sender">
+    <h3>About</h3>
+    <p>Plays a Media file on a chromecast</p>
+    
+    <h3>Use</h3>
+    <p>To use pass in the IP address of the chromecast <code>msg.host</code> and an appropriate <code>payload</code>.</p>
+</script>

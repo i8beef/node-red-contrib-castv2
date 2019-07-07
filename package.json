@@ -1,0 +1,29 @@
+{
+  "name": "red-contrib-castv2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "castv2.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/i8beef/node-red-contrib-castv2.git"
+  },
+  "keywords": [
+    "nodered",
+    "google",
+    "chromecast",
+    "cast"
+  ],
+  "author": "Michael Hallock",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/i8beef/node-red-contrib-castv2/issues"
+  },
+  "homepage": "https://github.com/i8beef/node-red-contrib-castv2#readme",
+  "dependencies": {
+    "castv2-client": "^1.2.0",
+    "google-tts-api": "0.0.4"
+  }
+}
