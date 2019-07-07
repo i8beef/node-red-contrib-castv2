@@ -30,7 +30,7 @@ General msg format expected on input is as follows:
 }
 ```
 
-The following commands are supported as `msg.payload.type`
+The following commands are supported as `msg.payload.type`. Note `msg.payload` can be left `null` and on trigger the node will just output the current device status. Unless otherwise stated in the examples below, nothing else is necessary on the `msg.payload` except `msg.payload.type`.
 
 | Command    | Example                                                          |
 |------------|------------------------------------------------------------------|
@@ -66,6 +66,20 @@ The following commands are supported as `msg.payload.type`
 ```
 
 Alternatively, you can send an array for `msg.payload.media` with a collection of objects of the same format to trigger loading a media queue to the cast device instead.
+
+```js
+{
+  host: "1.1.1.1",
+  payload: {
+    type: "MEDIA",
+    media: [
+      { url: "http://test.com/media.mp3", ... },
+      { url: "http://test.com/someOtherMedia.mp3", ... },
+      ...
+    ]
+  }
+}
+```
 
 #### TTS Example
 
