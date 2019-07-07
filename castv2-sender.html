@@ -28,28 +28,48 @@
 </script>
 
 <script type="text/x-red" data-help-name="castv2-sender">
-    <h3>About</h3>
-    <p>Plays a Media file on a chromecast</p>
-    
-    <h3>Use</h3>
-    <p>Specify a valid cast target host in settings, or pass in as <code>msg.host</code>. Output will always be current status object from the cast device.<p>
-    <p>A <code>msg.payload</code> object can be passed to specify several different commands. The type of command can be specified by setting <code>msg.payload.type</code>
-    to one of the supported command types:
-    
-        <ul>
-            <li>MEDIA</li>
-            <li>MUTE</li>
-            <li>PAUSE</li>
-            <li>PLAY</li>
-            <li>SEEK</li>
-            <li>STOP</li>
-            <li>TTS</li>
-            <li>VOLUME</li>
-            <li>UNMUTE</li>
-        </ul>
-    </p>
+    <p>Connects to a Google Cast target to send commands</p>
 
-    <h3>MEDIA command</h3>
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">host <span class="property-type">string</span></dt>
+        <dd> the host to cast to.</dd>
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd> the command object to send.</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <ol class="node-ports">
+        <li>Standard output
+            <dl class="message-properties">
+                <dt>payload <span class="property-type">object</span></dt>
+                <dd>the currnet cast target status.</dd>
+            </dl>
+        </li>
+        <li>Standard error
+            <dl class="message-properties">
+                <dt>payload <span class="property-type">string</span></dt>
+                <dd>the standard error of the command.</dd>
+            </dl>
+        </li>
+    </ol>
+    
+    <h3>Details</h3>
+    <p>Specify a valid cast target host in settings, or pass in as <code>msg.host</code>. Output will always be current status object from the cast device.<p>
+    <p>A <code>msg.payload</code> object can be passed to specify several different commands. The type of command can be specified by setting <code>msg.payload.type</code> to one of the supported command types:</p>
+    <ul>
+        <li>MEDIA</li>
+        <li>MUTE</li>
+        <li>PAUSE</li>
+        <li>PLAY</li>
+        <li>SEEK</li>
+        <li>STOP</li>
+        <li>TTS</li>
+        <li>VOLUME</li>
+        <li>UNMUTE</li>
+    </ul>
+
+    <h4>MEDIA command</h4>
     <p>The MEDIA command requires a properly formatted <code>media</code> property. It can either be a single media object, or an array of media objects which will send a queue playlist to the cast target.</p>
     <p>A "media" object requires a <code>url</code> property, but supports additional properties if needed.</p>
     <pre>
@@ -62,12 +82,17 @@
         }
     </pre>
 
-    <h3>SEEK command</h3>
+    <h4>SEEK command</h4>
     <p>The SEEK command requires a <code>time</code> property to be set in seconds.</p>
 
-    <h3>TTS command</h3>
+    <h4>TTS command</h4>
     <p>The TTS command requires a <code>text</code> property to be set. Optional parameters can be set for <code>title</code>, <code>language</code>, and <code>speed</code>.</p>
 
-    <h3>VOLUME command</h3>
+    <h4>VOLUME command</h4>
     <p>The VOLUME command requires a <code>volume</code> property to be set between 0 to 100.</p>
+
+    <h3>References</h3>
+    <ul>
+        <li><a href="https://github.com/i8beef/node-red-contrib-castv2">GitHub</a> - the nodes github repository</li>
+    </ul>
 </script>
