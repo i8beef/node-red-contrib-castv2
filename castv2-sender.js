@@ -140,7 +140,7 @@ module.exports = function(RED) {
                 // Setup client
                 node.client = new Client();
                 node.client.on("error", node.onError);
-                node.client.on("status", node.onStatus);
+                node.client.on("status", status => node.onStatus(null, status));
 
                 // Execute command
                 let connectOptions = { host: msg.host || node.host };
@@ -159,7 +159,7 @@ module.exports = function(RED) {
 
                                 if (!receiver.media.currentSession) {
                                     // Trick to deal with joined session instantiation issue
-                                    receiver.getStatus(() => { node.sendCastCommand(receiver, msg.payload); });
+                                    receiver.getStatus((statusError, status) => { node.sendCastCommand(receiver, msg.payload); });
                                 } else {
                                     node.sendCastCommand(receiver, msg.payload);
                                 }
