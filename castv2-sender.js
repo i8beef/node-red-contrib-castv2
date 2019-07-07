@@ -158,6 +158,8 @@ module.exports = function(RED) {
                             node.client.join(activeSession, DefaultMediaReceiver, (joinError, receiver) => {
                                 if (joinError) return node.onError(joinError);
 
+                                node.status({ fill: "green", shape: "dot", text: "joined" });
+
                                 if (!receiver.media.currentSession) {
                                     // Trick to deal with joined session instantiation issue
                                     receiver.getStatus((statusError, status) => {
@@ -172,6 +174,8 @@ module.exports = function(RED) {
                             // Launch new DefaultMediaReceiver session
                             node.client.launch(DefaultMediaReceiver, (launchError, receiver) => {
                                 if (launchError) return node.onError(launchError);
+
+                                node.status({ fill: "green", shape: "dot", text: "launched" });
 
                                 node.sendCastCommand(receiver, msg.payload);            
                             });
