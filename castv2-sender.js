@@ -31,6 +31,7 @@ module.exports = function(RED) {
         this.onStatus = function(error, status) {
             if (error) return node.onError(error);
 
+            node.client.close();
             node.status({ fill: "green", shape: "dot", text: "idle" });
             node.context().set("status", status);
 
@@ -56,8 +57,14 @@ module.exports = function(RED) {
             node.status({ fill: "yellow", shape: "dot", text: "sending" });
 
             switch (command.type) {
+                case "CLOSE":
+                    node.client.stop(receiver, node.onStatus);
+                    break;
                 case "GET_VOLUME":
                     node.client.getVolume(node.onVolume);
+                    break;
+                case "GET_STATUS":
+                    receiver.getStatus(node.onStatus);
                     break;
                 case "MUTE":
                     node.client.setVolume({ muted: true }, node.onVolume);
@@ -67,9 +74,6 @@ module.exports = function(RED) {
                     break;
                 case "PLAY":
                     receiver.play(node.onStatus);
-                    break;
-                case "QUIT":
-                    node.client.stop(node.onStatus);
                     break;
                 case "SEEK":
                     if (command.time) {
@@ -125,7 +129,7 @@ module.exports = function(RED) {
                     }
                     break;
                 default:
-                    // Note there seems to be a bug with receiver.getStatus not working
+                    // Note this is the platform status, not the current receiver status
                     node.client.getStatus(node.onStatus);
                     break;
             }
