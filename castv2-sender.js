@@ -68,6 +68,9 @@ module.exports = function(RED) {
                 case "PLAY":
                     receiver.play(node.onStatus);
                     break;
+                case "QUIT":
+                    node.client.stop(node.onStatus);
+                    break;
                 case "SEEK":
                     if (command.time) {
                         receiver.seek(command.time, node.onStatus);
@@ -164,6 +167,7 @@ module.exports = function(RED) {
                                     // Trick to deal with joined session instantiation issue
                                     receiver.getStatus((statusError, status) => {
                                         if (statusError) return node.onError(statusError);
+
                                         node.sendCastCommand(receiver, msg.payload);
                                     });
                                 } else {
@@ -264,7 +268,7 @@ module.exports = function(RED) {
             };
 
             let ext = fileName.split(".").slice(-1)[0];
-            contentType = contentTypeMap[ext.toLowerCase()];
+            let contentType = contentTypeMap[ext.toLowerCase()];
 
             return contentType || "audio/basic";
         };
