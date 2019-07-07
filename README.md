@@ -11,7 +11,7 @@ or
 This assumes you have [node-red](http://nodered.org/) already installed and working, if you need to install node-red see [here](http://nodered.org/docs/getting-started/installation)
 
 ```shell
-$ cd cd ~/.node-red
+$ cd ~/.node-red
 $ npm install node-red-contrib-home-assistant
 ```
 ## Usage
@@ -22,7 +22,7 @@ General msg format expected on input is as follows:
 
 ```js
 {
-  host: "1.1.1.1",
+  host: "1.1.1.1", // optional if specified on the node itself
   payload: {
     type: "TYPE",
     ...
