@@ -160,7 +160,10 @@ module.exports = function(RED) {
 
                                 if (!receiver.media.currentSession) {
                                     // Trick to deal with joined session instantiation issue
-                                    receiver.getStatus((statusError, status) => { node.sendCastCommand(receiver, msg.payload); });
+                                    receiver.getStatus((statusError, status) => {
+                                        if (statusError) return node.onError(statusError);
+                                        node.sendCastCommand(receiver, msg.payload);
+                                    });
                                 } else {
                                     node.sendCastCommand(receiver, msg.payload);
                                 }
@@ -184,7 +187,7 @@ module.exports = function(RED) {
          * Build a media object
          */
         this.buildMediaObject = function(media) {
-            let fileName = media.contentId.split("/")[-1].split("?"[0]);
+            let fileName = media.url.split("/")[-1].split("?"[0]);
             return {
                 contentId : media.url,
                 contentType: media.contentType || node.getContentType(fileName),
