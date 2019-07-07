@@ -34,7 +34,7 @@ module.exports = function(RED) {
             node.status({ fill: "green", shape: "dot", text: "idle" });
             node.context().set("status", status);
 
-            node.send({ payload: status });
+            if (status) node.send({ payload: status });
         };
 
         /*
@@ -122,7 +122,8 @@ module.exports = function(RED) {
                     }
                     break;
                 default:
-                    receiver.getStatus(node.onStatus);
+                    // Note there seems to be a bug with receiver.getStatus not working
+                    node.client.getStatus(node.onStatus);
                     break;
             }
         };
@@ -140,7 +141,7 @@ module.exports = function(RED) {
                 // Setup client
                 node.client = new Client();
                 node.client.on("error", node.onError);
-                node.client.on("status", status => node.onStatus(null, status));
+                //node.client.on("status", status => node.onStatus(null, status));
 
                 // Execute command
                 let connectOptions = { host: msg.host || node.host };
