@@ -191,7 +191,8 @@ module.exports = function(RED) {
          * Build a media object
          */
         this.buildMediaObject = function(media) {
-            let fileName = media.url.split("/")[-1].split("?"[0]);
+            let urlParts = media.url.split("/");
+            let fileName = urlParts.slice(-1)[0].split("?")[0];
             return {
                 contentId : media.url,
                 contentType: media.contentType || node.getContentType(fileName),
@@ -262,7 +263,7 @@ module.exports = function(RED) {
                 wmv: "video/x-ms-wmv"
             };
 
-            let ext = fileName.split(".")[-1];
+            let ext = fileName.split(".").slice(-1)[0];
             contentType = contentTypeMap[ext.toLowerCase()];
 
             return contentType || "audio/basic";
