@@ -121,6 +121,9 @@ module.exports = function(RED) {
                         });
                     }
                     break;
+                default:
+                    receiver.getStatus(node.onStatus);
+                    break;
             }
         };
 
@@ -133,43 +136,47 @@ module.exports = function(RED) {
                 msg.payload = { type: "GET_STATUS" };
             }
 
-            // Setup client
-            node.client = new Client();
-            node.client.on("error", node.onError);
-            node.client.on("status", node.onStatus);
+            try {
+                // Setup client
+                node.client = new Client();
+                node.client.on("error", node.onError);
+                node.client.on("status", node.onStatus);
 
-            // Execute command
-            let connectOptions = { host: msg.host || node.host };
-            node.client.connect(connectOptions, () => {
-                node.status({ fill: "green", shape: "dot", text: "connected" });
+                // Execute command
+                let connectOptions = { host: msg.host || node.host };
+                node.client.connect(connectOptions, () => {
+                    node.status({ fill: "green", shape: "dot", text: "connected" });
 
-                // Get current status
-                node.client.getSessions((getSessionsError, sessions) => {
-                    if (getSessionsError) return node.onError(getSessionsError);
+                    // Get current status
+                    node.client.getSessions((getSessionsError, sessions) => {
+                        if (getSessionsError) return node.onError(getSessionsError);
 
-                    let activeSession = sessions.find(session => session.appId === DefaultMediaReceiver.APP_ID);
-                    if (activeSession) {
-                        // Join active DefaultMediaReceiver session
-                        node.client.join(activeSession, DefaultMediaReceiver, (joinError, receiver) => {
-                            if (joinError) return node.onError(joinError);
+                        let activeSession = sessions.find(session => session.appId === DefaultMediaReceiver.APP_ID);
+                        if (activeSession) {
+                            // Join active DefaultMediaReceiver session
+                            node.client.join(activeSession, DefaultMediaReceiver, (joinError, receiver) => {
+                                if (joinError) return node.onError(joinError);
 
-                            if (!receiver.media.currentSession) {
-                                // Trick to deal with joined session instantiation issue
-                                receiver.getStatus(() => { node.sendCastCommand(receiver, msg.payload); });
-                            } else {
-                                node.sendCastCommand(receiver, msg.payload);
-                            }
-                        });
-                    } else {
-                        // Launch new DefaultMediaReceiver session
-                        node.client.launch(DefaultMediaReceiver, (launchError, receiver) => {
-                            if (launchError) return node.onError(launchError);
+                                if (!receiver.media.currentSession) {
+                                    // Trick to deal with joined session instantiation issue
+                                    receiver.getStatus(() => { node.sendCastCommand(receiver, msg.payload); });
+                                } else {
+                                    node.sendCastCommand(receiver, msg.payload);
+                                }
+                            });
+                        } else {
+                            // Launch new DefaultMediaReceiver session
+                            node.client.launch(DefaultMediaReceiver, (launchError, receiver) => {
+                                if (launchError) return node.onError(launchError);
 
-                            node.sendCastCommand(receiver, msg.payload);            
-                        });
-                    }
+                                node.sendCastCommand(receiver, msg.payload);            
+                            });
+                        }
+                    });
                 });
-            });
+            } catch (exception) {
+                node.onError(exception.message);
+            }
         });
 
         /*
