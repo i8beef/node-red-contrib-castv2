@@ -14,24 +14,14 @@ module.exports = function(RED) {
         let node = this;
 
         // Initialize status
-        this.status({
-            fill: "green",
-            shape: "dot",
-            text: "idle"
-        });
+        this.status({ fill: "green", shape: "dot", text: "idle" });
 
         /*
          * Global error handler
          */
         this.onError = function(error) {
             node.client.close();
-
-            node.status({
-                fill: "red",
-                shape: "dot",
-                text: "error"
-            });
-
+            node.status({ fill: "red", shape: "dot", text: "error" });
             node.error(error);
         };
 
@@ -40,7 +30,11 @@ module.exports = function(RED) {
          */
         this.onStatus = function(error, status) {
             if (error) return node.onError(error);
-            node.context().set("status", status)
+
+            node.status({ fill: "green", shape: "dot", text: "idle" });
+            node.context().set("status", status);
+
+            node.send({ payload: status });
         };
 
         /*
@@ -48,22 +42,18 @@ module.exports = function(RED) {
          */
         this.onVolume = function(error, volume) {
             if (error) return node.onError(error);
-            node.context().set("volume", volume)
+
+            node.context().set("volume", volume);
+
+            // Update the node status
+            node.client.getStatus(node.onStatus);
         };
 
         /*
          * Case command handler
          */
         this.sendCastCommand = function(receiver, command) {
-            // Initialize status and volume
-            receiver.getStatus(node.onStatus);
-            node.client.getVolume(node.onVolume);
-
-            node.status({
-                fill: "yellow",
-                shape: "dot",
-                text: "sending"
-            });
+            node.status({ fill: "yellow", shape: "dot", text: "sending" });
 
             switch (command.type) {
                 case "GET_VOLUME":
@@ -132,9 +122,6 @@ module.exports = function(RED) {
                     }
                     break;
             }
-
-            // Get current status update
-            receiver.getStatus(node.onStatus);
         };
 
         /*
@@ -154,11 +141,7 @@ module.exports = function(RED) {
             // Execute command
             let connectOptions = { host: msg.host || node.host };
             node.client.connect(connectOptions, () => {
-                node.status({
-                    fill: "yellow",
-                    shape: "dot",
-                    text: "connected"
-                });
+                node.status({ fill: "green", shape: "dot", text: "connected" });
 
                 // Get current status
                 node.client.getSessions((getSessionsError, sessions) => {
@@ -170,7 +153,12 @@ module.exports = function(RED) {
                         node.client.join(activeSession, DefaultMediaReceiver, (joinError, receiver) => {
                             if (joinError) return node.onError(joinError);
 
-                            node.sendCastCommand(receiver, msg.payload);
+                            if (!receiver.media.currentSession) {
+                                // Trick to deal with joined session instantiation issue
+                                receiver.getStatus(() => { node.sendCastCommand(receiver, msg.payload); });
+                            } else {
+                                node.sendCastCommand(receiver, msg.payload);
+                            }
                         });
                     } else {
                         // Launch new DefaultMediaReceiver session
@@ -181,18 +169,7 @@ module.exports = function(RED) {
                         });
                     }
                 });
-
-                node.client.close();
             });
-
-            node.status({
-                fill: "green",
-                shape: "dot",
-                text: "idle"
-            });
-
-            let status = node.context().get("status");
-            node.send({ payload: status });
         });
 
         /*
