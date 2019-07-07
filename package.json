@@ -11,10 +11,11 @@
     "url": "git+https://github.com/i8beef/node-red-contrib-castv2.git"
   },
   "keywords": [
-    "nodered",
+    "node-red",
     "google",
     "chromecast",
-    "cast"
+    "cast",
+    "castv2"
   ],
   "author": "Michael Hallock",
   "license": "MIT",
@@ -25,5 +26,10 @@
   "dependencies": {
     "castv2-client": "^1.2.0",
     "google-tts-api": "0.0.4"
+  },
+  "node-red": {
+    "nodes": {
+        "castv2-sender": "castv2-sender.js"
+    }
   }
 }

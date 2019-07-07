@@ -1,14 +1,14 @@
 <script type="text/javascript">
     RED.nodes.registerType('castv2-sender', {
         category: 'function',
-        color: '#a6bbcf',
+        color: '#4285F4',
         defaults: {
-            name: {value:""},
-            host: {value:""}
+            name: { value:"" },
+            host: { value:"" }
         },
         inputs:1,
         outputs:1,
-        icon: "file.png",
+        icon: "bridge.png",
         label: function() {
             return this.name || "castv2-sender";
         }
@@ -22,7 +22,7 @@
     </div>
 
     <div class="form-row">
-        <label for="node-input-host">IP</label>
+        <label for="node-input-host">Host</label>
         <input type="text" id="node-input-host" placeholder="0.0.0.0">
     </div>
 </script>
@@ -32,5 +32,42 @@
     <p>Plays a Media file on a chromecast</p>
     
     <h3>Use</h3>
-    <p>To use pass in the IP address of the chromecast <code>msg.host</code> and an appropriate <code>payload</code>.</p>
+    <p>Specify a valid cast target host in settings, or pass in as <code>msg.host</code>. Output will always be current status object from the cast device.<p>
+    <p>A <code>msg.payload</code> object can be passed to specify several different commands. The type of command can be specified by setting <code>msg.payload.type</code>
+    to one of the supported command types:
+    
+        <ul>
+            <li>MEDIA</li>
+            <li>MUTE</li>
+            <li>PAUSE</li>
+            <li>PLAY</li>
+            <li>SEEK</li>
+            <li>STOP</li>
+            <li>TTS</li>
+            <li>VOLUME</li>
+            <li>UNMUTE</li>
+        </ul>
+    </p>
+
+    <h3>MEDIA command</h3>
+    <p>The MEDIA command requires a properly formatted <code>media</code> property. It can either be a single media object, or an array of media objects which will send a queue playlist to the cast target.</p>
+    <p>A "media" object requires a <code>url</code> property, but supports additional properties if needed.</p>
+    <pre>
+        {
+            url: "urlOfMedia.mp3",
+            contentType: "audio/mp3",
+            streamType: "BUFFERED or LIVE",
+            title: "optional title",
+            image: "imageUrl"
+        }
+    </pre>
+
+    <h3>SEEK command</h3>
+    <p>The SEEK command requires a <code>time</code> property to be set in seconds.</p>
+
+    <h3>TTS command</h3>
+    <p>The TTS command requires a <code>text</code> property to be set. Optional parameters can be set for <code>title</code>, <code>language</code>, and <code>speed</code>.</p>
+
+    <h3>VOLUME command</h3>
+    <p>The VOLUME command requires a <code>volume</code> property to be set between 0 to 100.</p>
 </script>
