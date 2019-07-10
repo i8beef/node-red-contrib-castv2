@@ -193,14 +193,14 @@ module.exports = function(RED) {
                     // Allow for override of app to start / command
                     let app = DefaultMediaReceiver;
                     if (msg.appId && msg.appId !== "") {
-                        app = { APP_ID: msg.payload.appId };
+                        app = { APP_ID: msg.appId };
                     }
                     
                     node.client.getAppAvailability(app.APP_ID, (getAppAvailabilityError, availability) => {
                         if (getAppAvailabilityError) return node.onError(getAppAvailabilityError);
 
                         // Only attempt to use the app if its available
-                        if (!(app.APP_ID in availability) || availability[app.APP_ID] === false) return node.onStatus(null, null);
+                        if (!availability || !(app.APP_ID in availability) || availability[app.APP_ID] === false) return node.onStatus(null, null);
 
                         // Get current sessions
                         node.client.getSessions((getSessionsError, sessions) => {
