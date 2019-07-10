@@ -18,11 +18,14 @@ $ npm install node-red-contrib-home-assistant
 
 This package provides a single node, `castv2-sender`, which will be under the "functions" group in the pallete. The node exposes a single configuration setting, the IP address / host name of the target cast device, but this can be left empty and you can supply `msg.host` on the incoming message as well if that's easier. The node will always output the current google cast device state after every command.
 
+A `msg.appId` can also be specified if you'd like to launch or control an app other than the default media casting application, for instance to launch a custom cast receiver, etc. This is experimental.
+
 General msg format expected on input is as follows:
 
 ```js
 {
   host: "1.1.1.1", // optional if specified on the node itself
+  appId: "", // optional, allows launching and controlling apps other than DefaultMediaReceiver
   payload: {
     type: "TYPE",
     ...

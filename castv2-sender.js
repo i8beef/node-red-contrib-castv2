@@ -51,57 +51,87 @@ module.exports = function(RED) {
         };
 
         /*
-         * Case command handler
+         * Media command handler
+         * 
+         * status.supportedMediaCommands bitmask
+         * 1   Pause
+         * 2   Seek
+         * 4   Stream volume
+         * 8   Stream mute
+         * 16  Skip forward
+         * 32  Skip backward
+         */
+        this.sendMediaCommand = function(receiver, command) {
+            receiver.getStatus((statusError, status) => {
+                if (statusError) return node.onError(statusError);
+
+                // Theres not actually anything playing, exit gracefully
+                if (!status) return node.onStatus(null, status);
+
+                switch (command.type) {
+                    case "PAUSE":
+                        if (status.supportedMediaCommands & 1) {
+                            return receiver.pause(node.onStatus);
+                        }
+                        break;
+                    case "PLAY":
+                        return receiver.play(node.onStatus);
+                        break;
+                    case "SEEK":
+                        if (command.time && status.supportedMediaCommands & 2) {
+                            return receiver.seek(command.time, node.onStatus);
+                        }
+                        break;
+                    case "STOP":
+                        return receiver.stop(node.onStatus);
+                        break;
+                    case "MUTE":
+                        if (status.supportedMediaCommands & 8) {
+                            return node.client.setVolume({ muted: true }, node.onVolume);
+                        }
+                        break;
+                    case "UNMUTE":
+                        if (status.supportedMediaCommands & 8) {
+                            return node.client.setVolume({ muted: false }, node.onVolume);
+                        }
+                        break;
+                    case "VOLUME":
+                        if (command.volume && status.supportedMediaCommands & 4 && command.volume >= 0 && command.volume <= 100) {
+                            return node.client.setVolume({ level: command.volume / 100 }, node.onVolume);
+                        }
+                        break;
+                }
+
+                // Nothing executed, return the current status
+                node.onStatus(null, status);
+            });
+        };
+
+        /*
+         * Cast command handler
          */
         this.sendCastCommand = function(receiver, command) {
             node.status({ fill: "yellow", shape: "dot", text: "sending" });
 
+            // Check for non-media commands first
             switch (command.type) {
                 case "CLOSE":
-                    node.client.stop(receiver, node.onStatus);
+                    return node.client.stop(receiver, node.onStatus);
                     break;
                 case "GET_VOLUME":
-                    node.client.getVolume(node.onVolume);
-                    break;
-                case "GET_STATUS":
-                    receiver.getStatus(node.onStatus);
-                    break;
-                case "MUTE":
-                    node.client.setVolume({ muted: true }, node.onVolume);
-                    break;
-                case "PAUSE":
-                    receiver.pause(node.onStatus);
-                    break;
-                case "PLAY":
-                    receiver.play(node.onStatus);
-                    break;
-                case "SEEK":
-                    if (command.time) {
-                        receiver.seek(command.time, node.onStatus);
-                    }
-                    break;
-                case "STOP":
-                    receiver.stop(node.onStatus);
-                    break;
-                case "VOLUME":
-                    if (command.volume && command.volume >= 0 && command.volume <= 100) {
-                        node.client.setVolume({ level: command.volume / 100 }, node.onVolume);
-                    }
-                    break;
-                case "UNMUTE":
-                    node.client.setVolume({ muted: false }, node.onVolume);
+                    return node.client.getVolume(node.onVolume);
                     break;
                 case "MEDIA":
                     if (command.media) {
                         if (Array.isArray(command.media)) {
                             // Queue handling
-                            receiver.queueLoad(
+                            return receiver.queueLoad(
                                 command.media.map(node.buildMediaObject),
                                 { startIndex: 1, repeatMode: "REPEAT_OFF" },
                                 node.onStatus);
                         } else {
                             // Single media handling
-                            receiver.load(
+                            return receiver.load(
                                 node.buildMediaObject(command.media),
                                 { autoplay: true },
                                 node.onStatus);
@@ -114,7 +144,7 @@ module.exports = function(RED) {
                         let language = command.language || "en";
 
                         // Get castable URL
-                        googletts(command.text, language, speed).then(url => {
+                        return googletts(command.text, language, speed).then(url => {
                             let media = node.buildMediaObject({
                                 url: url,
                                 contentType: "audio/mp3",
@@ -125,14 +155,19 @@ module.exports = function(RED) {
                                 media,
                                 { autoplay: true },
                                 node.onStatus);
+                        }, reason => {
+                            node.onError(reason);
                         });
                     }
                     break;
                 default:
-                    // Note this is the platform status, not the current receiver status
-                    node.client.getStatus(node.onStatus);
+                    // Media command
+                    return node.sendMediaCommand(receiver, command);
                     break;
             }
+
+            // If it got this far just end the current execution gracefully
+            node.onStatus(null, null);
         };
 
         /*
@@ -155,39 +190,41 @@ module.exports = function(RED) {
                 node.client.connect(connectOptions, () => {
                     node.status({ fill: "green", shape: "dot", text: "connected" });
 
-                    // Get current status
-                    node.client.getSessions((getSessionsError, sessions) => {
-                        if (getSessionsError) return node.onError(getSessionsError);
+                    // Allow for override of app to start / command
+                    let app = DefaultMediaReceiver;
+                    if (msg.appId && msg.appId !== "") {
+                        app = { APP_ID: msg.payload.appId };
+                    }
+                    
+                    node.client.getAppAvailability(app.APP_ID, (getAppAvailabilityError, availability) => {
+                        if (getAppAvailabilityError) return node.onError(getAppAvailabilityError);
 
-                        let activeSession = sessions.find(session => session.appId === DefaultMediaReceiver.APP_ID);
-                        if (activeSession) {
-                            // Join active DefaultMediaReceiver session
-                            node.client.join(activeSession, DefaultMediaReceiver, (joinError, receiver) => {
-                                if (joinError) return node.onError(joinError);
+                        // Only attempt to use the app if its available
+                        if (!(app.APP_ID in availability) || availability[app.APP_ID] === false) return node.onStatus(null, null);
 
-                                node.status({ fill: "green", shape: "dot", text: "joined" });
+                        // Get current sessions
+                        node.client.getSessions((getSessionsError, sessions) => {
+                            if (getSessionsError) return node.onError(getSessionsError);
 
-                                if (!receiver.media.currentSession) {
-                                    // Trick to deal with joined session instantiation issue
-                                    receiver.getStatus((statusError, status) => {
-                                        if (statusError) return node.onError(statusError);
+                            let activeSession = sessions.find(session => session.appId === app.APP_ID);
+                            if (activeSession) {
+                                // Join active Application session
+                                node.client.join(activeSession, app, (joinError, receiver) => {
+                                    if (joinError) return node.onError(joinError);
 
-                                        node.sendCastCommand(receiver, msg.payload);
-                                    });
-                                } else {
+                                    node.status({ fill: "green", shape: "dot", text: "joined" });
                                     node.sendCastCommand(receiver, msg.payload);
-                                }
-                            });
-                        } else {
-                            // Launch new DefaultMediaReceiver session
-                            node.client.launch(DefaultMediaReceiver, (launchError, receiver) => {
-                                if (launchError) return node.onError(launchError);
+                                });
+                            } else {
+                                // Launch new Application session
+                                node.client.launch(app, (launchError, receiver) => {
+                                    if (launchError) return node.onError(launchError);
 
-                                node.status({ fill: "green", shape: "dot", text: "launched" });
-
-                                node.sendCastCommand(receiver, msg.payload);            
-                            });
-                        }
+                                    node.status({ fill: "green", shape: "dot", text: "launched" });
+                                    node.sendCastCommand(receiver, msg.payload);            
+                                });
+                            }
+                        });
                     });
                 });
             } catch (exception) {
