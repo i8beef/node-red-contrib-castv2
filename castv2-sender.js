@@ -116,7 +116,7 @@ module.exports = function(RED) {
             // Check for non-media commands first
             switch (command.type) {
                 case "CLOSE":
-                    return node.client.stop(receiver, node.onStatus);
+                    return node.client.stop(receiver, (err, applications) => node.onStatus(err, null));
                     break;
                 case "GET_VOLUME":
                     return node.client.getVolume(node.onVolume);
