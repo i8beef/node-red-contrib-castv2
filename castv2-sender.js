@@ -90,10 +90,9 @@ module.exports = function(RED) {
                             title: command.title ? command.title : "tts"
                         });
 
-                        let mediaOptions = command.media.options || { autoplay: true };
                         receiver.load(
                             media,
-                            mediaOptions,
+                            { autoplay: true },
                             node.onStatus);
                     }, reason => {
                         node.onError(reason);
@@ -139,10 +138,10 @@ module.exports = function(RED) {
                     // Nothing executed, return the current status
                     return node.onError("Malformed media control command");
                 });
-            }
 
-            // If it got this far just error
-            return node.onError("Malformed media command");
+                // If it got this far just error
+                return node.onError("Malformed media command");
+            }
         };
 
         /*
