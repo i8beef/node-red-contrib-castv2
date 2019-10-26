@@ -22,7 +22,8 @@ module.exports = function(RED) {
          * Global error handler
          */
         this.onError = function(error) {
-            node.client.close();
+            if (node.client) node.client.close();
+            
             node.status({ fill: "red", shape: "dot", text: "error" });
             node.error(error);
         };
@@ -33,7 +34,8 @@ module.exports = function(RED) {
         this.onStatus = function(error, status) {
             if (error) return node.onError(error);
 
-            node.client.close();
+            if (node.client) node.client.close();
+            
             node.status({ fill: "green", shape: "dot", text: "idle" });
             node.context().set("status", status);
 
