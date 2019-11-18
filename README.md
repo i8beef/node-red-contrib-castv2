@@ -12,7 +12,7 @@ This assumes you have [node-red](http://nodered.org/) already installed and work
 
 ```shell
 $ cd ~/.node-red
-$ npm install node-red-contrib-home-assistant
+$ npm install node-red-contrib-castv2
 ```
 ## Usage
 
