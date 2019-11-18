@@ -20,7 +20,7 @@ This package provides a single node, `castv2-sender`, which will be under the "f
 
 A `msg.appId` can also be specified if you'd like to launch or control an app other than the default media casting application, for instance to launch a custom cast receiver, etc. This is experimental.
 
-General msg format expected on input is as follows:
+At a minimum, a msg.payload *must* be defined, and *must* conform to the format below. Be careful when sending results of other nodes in that it doesn't conflict in some way or unexpected results may occur. General msg format expected on input is as follows:
 
 ```js
 {
