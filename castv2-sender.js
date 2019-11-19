@@ -78,14 +78,14 @@ module.exports = function(RED) {
                 if (command.media) {
                     if (Array.isArray(command.media)) {
                         // Queue handling
-                        let mediaOptions = command.media.options || { startIndex: 1, repeatMode: "REPEAT_OFF" };
+                        let mediaOptions = command.mediaOptions || { startIndex: 1, repeatMode: "REPEAT_OFF" };
                         return receiver.queueLoad(
                             command.media.map(node.buildMediaObject),
                             mediaOptions,
                             node.onStatus);
                     } else {
                         // Single media handling
-                        let mediaOptions = command.media.options || { autoplay: true };
+                        let mediaOptions = command.mediaOptions || { autoplay: true };
                         return receiver.load(
                             node.buildMediaObject(command.media),
                             mediaOptions,
