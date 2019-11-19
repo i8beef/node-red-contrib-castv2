@@ -22,8 +22,15 @@ module.exports = function(RED) {
          * Global error handler
          */
         this.onError = function(error) {
-            if (node.client) node.client.close();
-            
+            if (node.client) {
+                try {
+                    node.client.close();
+                }
+                catch (exception) {
+                    // swallow failures to close
+                }
+            }
+
             node.status({ fill: "red", shape: "dot", text: "error" });
             node.error(error);
         };
@@ -34,8 +41,15 @@ module.exports = function(RED) {
         this.onStatus = function(error, status) {
             if (error) return node.onError(error);
 
-            if (node.client) node.client.close();
-            
+            if (node.client) {
+                try {
+                    node.client.close();
+                }
+                catch (exception) {
+                    // swallow failures to close
+                }
+            }
+
             node.status({ fill: "green", shape: "dot", text: "idle" });
             node.context().set("status", status);
 
@@ -100,50 +114,47 @@ module.exports = function(RED) {
                         node.onError(reason);
                     });
                 }
-            } else {
-                // Initialize media controller by calling getStatus first
-                receiver.getStatus((statusError, status) => {
-                    if (statusError) return node.onError(statusError);
-    
-                    // Theres not actually anything playing, exit gracefully
-                    if (!status) return node.onStatus(null, status);
-    
-                    /*
-                     * Execute media control command
-                     * status.supportedMediaCommands bitmask
-                     * 1   Pause
-                     * 2   Seek
-                     * 4   Stream volume
-                     * 8   Stream mute
-                     * 16  Skip forward
-                     * 32  Skip backward
-                     */
-                    switch (command.type) {
-                        case "PAUSE":
-                            if (status.supportedMediaCommands & 1) {
-                                return receiver.pause(node.onStatus);
-                            }
-                            break;
-                        case "PLAY":
-                            return receiver.play(node.onStatus);
-                            break;
-                        case "SEEK":
-                            if (command.time && status.supportedMediaCommands & 2) {
-                                return receiver.seek(command.time, node.onStatus);
-                            }
-                            break;
-                        case "STOP":
-                            return receiver.stop(node.onStatus);
-                            break;
-                    }
-    
-                    // Nothing executed, return the current status
-                    return node.onError("Malformed media control command");
-                });
-
-                // If it got this far just error
-                return node.onError("Malformed media command");
             }
+
+            // Initialize media controller by calling getStatus first
+            return receiver.getStatus((statusError, status) => {
+                if (statusError) return node.onError(statusError);
+
+                // Theres not actually anything playing, exit gracefully
+                if (!status) return node.onStatus(null, status);
+
+                /*
+                * Execute media control command
+                * status.supportedMediaCommands bitmask
+                * 1   Pause
+                * 2   Seek
+                * 4   Stream volume
+                * 8   Stream mute
+                * 16  Skip forward
+                * 32  Skip backward
+                */
+                switch (command.type) {
+                    case "PAUSE":
+                        if (status.supportedMediaCommands & 1) {
+                            return receiver.pause(node.onStatus);
+                        }
+                        break;
+                    case "PLAY":
+                        return receiver.play(node.onStatus);
+                        break;
+                    case "SEEK":
+                        if (command.time && status.supportedMediaCommands & 2) {
+                            return receiver.seek(command.time, node.onStatus);
+                        }
+                        break;
+                    case "STOP":
+                        return receiver.stop(node.onStatus);
+                        break;
+                }
+
+                // Nothing executed, return the current status
+                return node.onError("Malformed media control command");
+            });
         };
 
         /*
