@@ -79,8 +79,9 @@ module.exports = function(RED) {
                     if (Array.isArray(command.media)) {
                         // Queue handling
                         let mediaOptions = command.mediaOptions || { startIndex: 1, repeatMode: "REPEAT_OFF" };
+                        let queueItems = node.buildQueueItems(command.media);
                         return receiver.queueLoad(
-                            command.media.map(node.buildMediaObject),
+                            queueItems,
                             mediaOptions,
                             node.onStatus);
                     } else {
@@ -284,6 +285,21 @@ module.exports = function(RED) {
                 textTrackStyle: media.textTrackStyle,
                 tracks: media.tracks
             };
+        };
+
+        /*
+         * Builds a queue item list from passed media arguments
+         */
+        this.buildQueueItems = function(media) {
+            return media.map((item, index) => {
+                return {
+                    autoplay: true,
+                    preloadTime: 5,
+                    orderId: index,
+                    activeTrackIds: [],
+                    media: node.buildMediaObject(item)
+                };
+            })
         };
 
         /*
