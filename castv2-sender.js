@@ -78,7 +78,7 @@ module.exports = function(RED) {
                 if (command.media) {
                     if (Array.isArray(command.media)) {
                         // Queue handling
-                        let mediaOptions = command.mediaOptions || { startIndex: 1, repeatMode: "REPEAT_OFF" };
+                        let mediaOptions = command.mediaOptions || { startIndex: 0, repeatMode: "REPEAT_OFF" };
                         let queueItems = node.buildQueueItems(command.media);
                         return receiver.queueLoad(
                             queueItems,
@@ -215,53 +215,61 @@ module.exports = function(RED) {
                 let connectOptions = { host: msg.host || node.host };
 
                 node.client.connect(connectOptions, () => {
-                    node.status({ fill: "green", shape: "dot", text: "connected" });
+                    try {
+                        node.status({ fill: "green", shape: "dot", text: "connected" });
 
-                    // Allow for override of app to start / command
-                    let app = DefaultMediaReceiver;
-                    if (msg.appId && msg.appId !== "") {
-                        // Build a generic application to pass into castv2 that will only support launch and close
-                        let GenericApplication = function(client, session) { Application.apply(this, arguments); };
-                        util.inherits(GenericApplication, Application);
-                        GenericApplication.APP_ID = msg.appId;
-
-                        app = GenericApplication;
-                    }
-                    
-                    node.client.getAppAvailability(app.APP_ID, (getAppAvailabilityError, availability) => {
-                        if (getAppAvailabilityError) return node.onError(getAppAvailabilityError);
-
-                        // Only attempt to use the app if its available
-                        if (!availability || !(app.APP_ID in availability) || availability[app.APP_ID] === false) return node.onStatus(null, null);
-
-                        // Get current sessions
-                        node.client.getSessions((getSessionsError, sessions) => {
-                            if (getSessionsError) return node.onError(getSessionsError);
-
-                            let activeSession = sessions.find(session => session.appId === app.APP_ID);
-                            if (activeSession) {
-                                // Join active Application session
-                                node.client.join(activeSession, app, (joinError, receiver) => {
-                                    if (joinError) return node.onError(joinError);
-
-                                    node.status({ fill: "green", shape: "dot", text: "joined" });
-                                    node.sendCastCommand(receiver, msg.payload);
+                        // Allow for override of app to start / command
+                        let app = DefaultMediaReceiver;
+                        if (msg.appId && msg.appId !== "") {
+                            // Build a generic application to pass into castv2 that will only support launch and close
+                            let GenericApplication = function(client, session) { Application.apply(this, arguments); };
+                            util.inherits(GenericApplication, Application);
+                            GenericApplication.APP_ID = msg.appId;
+    
+                            app = GenericApplication;
+                        }
+                        
+                        node.client.getAppAvailability(app.APP_ID, (getAppAvailabilityError, availability) => {
+                            try {
+                                if (getAppAvailabilityError) return node.onError(getAppAvailabilityError);
+    
+                                // Only attempt to use the app if its available
+                                if (!availability || !(app.APP_ID in availability) || availability[app.APP_ID] === false) return node.onStatus(null, null);
+        
+                                // Get current sessions
+                                node.client.getSessions((getSessionsError, sessions) => {
+                                    try {
+                                        if (getSessionsError) return node.onError(getSessionsError);
+        
+                                        let activeSession = sessions.find(session => session.appId === app.APP_ID);
+                                        if (activeSession) {
+                                            // Join active Application session
+                                            node.client.join(activeSession, app, (joinError, receiver) => {
+                                                try {
+                                                    if (joinError) return node.onError(joinError);
+            
+                                                    node.status({ fill: "green", shape: "dot", text: "joined" });
+                                                    node.sendCastCommand(receiver, msg.payload);    
+                                                } catch (exception) { node.onError(exception.message); }
+                                            });
+                                        } else {
+                                            // Launch new Application session
+                                            node.client.launch(app, (launchError, receiver) => {
+                                                try {
+                                                    if (launchError) return node.onError(launchError);
+            
+                                                    node.status({ fill: "green", shape: "dot", text: "launched" });
+                                                    node.sendCastCommand(receiver, msg.payload);            
+                                                } catch (exception) { node.onError(exception.message); }
+                                            });
+                                        }
+                                    } catch (exception) { node.onError(exception.message); }
                                 });
-                            } else {
-                                // Launch new Application session
-                                node.client.launch(app, (launchError, receiver) => {
-                                    if (launchError) return node.onError(launchError);
-
-                                    node.status({ fill: "green", shape: "dot", text: "launched" });
-                                    node.sendCastCommand(receiver, msg.payload);            
-                                });
-                            }
+                            } catch (exception) { node.onError(exception.message); }
                         });
-                    });
+                    } catch (exception) { node.onError(exception.message); }
                 });
-            } catch (exception) {
-                node.onError(exception.message);
-            }
+            } catch (exception) { node.onError(exception.message); }
         });
 
         /*
