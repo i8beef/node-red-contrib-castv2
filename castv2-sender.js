@@ -19,59 +19,28 @@ module.exports = function(RED) {
         this.status({ fill: "green", shape: "dot", text: "idle" });
 
         /*
-         * Global error handler
-         */
-        this.onError = function(error) {
-            if (node.client) {
-                try {
-                    node.client.close();
-                }
-                catch (exception) {
-                    // swallow failures to close
-                }
-            }
-
-            node.status({ fill: "red", shape: "dot", text: "error" });
-            node.error(error);
-        };
-
-        /*
-         * Status handler
-         */
-        this.onStatus = function(error, status) {
-            if (error) return node.onError(error);
-
-            if (node.client) {
-                try {
-                    node.client.close();
-                }
-                catch (exception) {
-                    // swallow failures to close
-                }
-            }
-
-            node.status({ fill: "green", shape: "dot", text: "idle" });
-            node.context().set("status", status);
-
-            if (status) node.send({ payload: status });
-        };
-
-        /*
          * Volume handler
          */
-        this.onVolume = function(error, volume) {
-            if (error) return node.onError(error);
-
+        this.onVolumeAsync = function(volume) {
             node.context().set("volume", volume);
 
             // Update the node status
-            node.client.getStatus(node.onStatus);
+            node.client.getStatusAsync = util.promisify(node.client.getStatus);
+            return node.client.getStatusAsync();
         };
 
         /*
          * Media command handler
          */
-        this.sendMediaCommand = function(receiver, command) {
+        this.sendMediaCommandAsync = function(receiver, command) {
+            receiver.getStatusAsync = util.promisify(receiver.getStatus);
+            receiver.loadAsync = util.promisify(receiver.load);
+            receiver.queueLoadAsync = util.promisify(receiver.queueLoad);
+            receiver.pauseAsync = util.promisify(receiver.pause);
+            receiver.playAsync = util.promisify(receiver.play);
+            receiver.seekAsync = util.promisify(receiver.seek);
+            receiver.stopAsync = util.promisify(receiver.stop);
+
             // Check for load commands
             if (command.type === "MEDIA") {
                 // Load or queue media command
@@ -80,17 +49,11 @@ module.exports = function(RED) {
                         // Queue handling
                         let mediaOptions = command.mediaOptions || { startIndex: 0, repeatMode: "REPEAT_OFF" };
                         let queueItems = node.buildQueueItems(command.media);
-                        return receiver.queueLoad(
-                            queueItems,
-                            mediaOptions,
-                            node.onStatus);
+                        return receiver.queueLoadAsync(queueItems, mediaOptions);
                     } else {
                         // Single media handling
                         let mediaOptions = command.mediaOptions || { autoplay: true };
-                        return receiver.load(
-                            node.buildMediaObject(command.media),
-                            mediaOptions,
-                            node.onStatus);
+                        return receiver.loadAsync(node.buildMediaObject(command.media), mediaOptions);
                     }
                 }
             } else if (command.type === "TTS") {
@@ -100,126 +63,155 @@ module.exports = function(RED) {
                     let language = command.language || "en";
 
                     // Get castable URL
-                    return googletts(command.text, language, speed).then(url => {
-                        let media = node.buildMediaObject({
-                            url: url,
-                            contentType: "audio/mp3",
-                            title: command.title ? command.title : "tts"
-                        });
+                    return googletts(command.text, language, speed)
+                        .then(url => node.buildMediaObject({ url: url, contentType: "audio/mp3", title: command.title ? command.title : "tts" }))
+                        .then(media => receiver.loadAsync(media, { autoplay: true }));
+                }
+            } else {
+                // Initialize media controller by calling getStatus first
+                return getStatusAsync()
+                    .then(status => {
+                        // Theres not actually anything playing, exit gracefully
+                        if (!status) throw new Error("not playing");
 
-                        receiver.load(
-                            media,
-                            { autoplay: true },
-                            node.onStatus);
-                    }, reason => {
-                        node.onError(reason);
+                        /*
+                        * Execute media control command
+                        * status.supportedMediaCommands bitmask
+                        * 1   Pause
+                        * 2   Seek
+                        * 4   Stream volume
+                        * 8   Stream mute
+                        * 16  Skip forward
+                        * 32  Skip backward
+                        */
+                        switch (command.type) {
+                            case "PAUSE":
+                                if (status.supportedMediaCommands & 1) {
+                                    return receiver.pauseAsync();
+                                }
+                                break;
+                            case "PLAY":
+                                return receiver.playAsync();
+                                break;
+                            case "SEEK":
+                                if (command.time && status.supportedMediaCommands & 2) {
+                                    return receiver.seekAsync(command.time);
+                                }
+                                break;
+                            case "STOP":
+                                return receiver.stopAsync();
+                                break;
+                            default:
+                                throw new Error("Malformed media control command");
+                                break;
+                        }
                     });
-                }
             }
-
-            // Initialize media controller by calling getStatus first
-            return receiver.getStatus((statusError, status) => {
-                if (statusError) return node.onError(statusError);
-
-                // Theres not actually anything playing, exit gracefully
-                if (!status) return node.onStatus(null, status);
-
-                /*
-                * Execute media control command
-                * status.supportedMediaCommands bitmask
-                * 1   Pause
-                * 2   Seek
-                * 4   Stream volume
-                * 8   Stream mute
-                * 16  Skip forward
-                * 32  Skip backward
-                */
-                switch (command.type) {
-                    case "PAUSE":
-                        if (status.supportedMediaCommands & 1) {
-                            return receiver.pause(node.onStatus);
-                        }
-                        break;
-                    case "PLAY":
-                        return receiver.play(node.onStatus);
-                        break;
-                    case "SEEK":
-                        if (command.time && status.supportedMediaCommands & 2) {
-                            return receiver.seek(command.time, node.onStatus);
-                        }
-                        break;
-                    case "STOP":
-                        return receiver.stop(node.onStatus);
-                        break;
-                }
-
-                // Nothing executed, return the current status
-                return node.onError("Malformed media control command");
-            });
         };
 
         /*
          * Cast command handler
          */
-        this.sendCastCommand = function(receiver, command) {
+        this.sendCastCommandAsync = function(receiver, command) {
+            node.client.getStatusAsync = util.promisify(node.client.getStatus);
+            node.client.getVolumeAsync = util.promisify(node.client.getVolume);
+            node.client.setVolumeAsync = util.promisify(node.client.setVolume);
+            node.client.stopAsync = util.promisify(node.client.stop);
+
             node.status({ fill: "yellow", shape: "dot", text: "sending" });
 
             // Check for platform commands first
             switch (command.type) {
                 case "CLOSE":
-                    return node.client.stop(receiver, (err, applications) => node.onStatus(err, null));
+                    return node.client.stopAsync(receiver);
                     break;
                 case "GET_VOLUME":
-                    return node.client.getVolume(node.onVolume);
+                    return node.client.getVolumeAsync(receiver)
+                        .then(volume => node.onVolumeAsync(volume));
                     break;
                 case "GET_STATUS":
-                    return node.client.getStatus(node.onStatus);
+                    return node.client.getStatusAsync();
+                    break;
                 case "MUTE":
-                    return node.client.setVolume({ muted: true }, node.onVolume);
+                    return node.client.setVolumeAsync({ muted: true })
+                        .then(volume => node.onVolumeAsync(volume));
                     break;
                 case "UNMUTE":
-                    return node.client.setVolume({ muted: false }, node.onVolume);
+                    return node.client.setVolumeAsync({ muted: false })
+                        .then(volume => node.onVolumeAsync(volume));
                     break;
                 case "VOLUME":
                     if (command.volume && command.volume >= 0 && command.volume <= 100) {
-                        return node.client.setVolume({ level: command.volume / 100 }, node.onVolume);
+                        return node.client.setVolumeAsync({ level: command.volume / 100 })
+                            .then(volume => node.onVolumeAsync(volume));
                     }
                     break;
                 default:
                     // If media receiver attempt to execute media commands
                     if (receiver instanceof DefaultMediaReceiver) {
-                        return node.sendMediaCommand(receiver, command);
+                        return node.sendMediaCommandAsync(receiver, command);
+                    } else {
+                        // If it got this far just error
+                        throw new Error("Malformed command");
                     }
                     break;
             }
+        };
 
-            // If it got this far just error
-            return node.onError("Malformed command");
+        /*
+         * Cleanup open connections
+         */
+        this.cleanup = function() {
+            if (node.client) {
+                try {
+                    node.client.close();
+                } catch (exception) { 
+                    // Swallow close exceptions
+                }
+            }
         };
 
         /*
          * Node-red input handler
          */
-        this.on("input", function(msg) {
-            // Validate incoming message
-            if (msg.payload == null || typeof msg.payload !== "object") {
-                msg.payload = { type: "GET_STATUS" };
-            }
+        this.on("input", function(msg, send, done) {
+            // For maximum backwards compatibility, check that send exists.
+            // If this node is installed in Node-RED 0.x, it will need to
+            // fallback to using `node.send`
+            send = send || function() { node.send.apply(node, arguments); };
+
+            const errorHandler = function(error) {
+                node.status({ fill: "red", shape: "dot", text: "error" });
+                node.cleanup();
+
+                if (done) { 
+                    done(error);
+                } else {
+                    node.error(error, error.message);
+                }
+            };
 
             try {
+                // Validate incoming message
+                if (msg.payload == null || typeof msg.payload !== "object") {
+                    msg.payload = { type: "GET_STATUS" };
+                }
+
                 // Setup client
                 node.client = new Client();
-                node.client.on("error", node.onError);
+                node.client.connectAsync = connectOptions => new Promise(resolve => node.client.connect(connectOptions, resolve));
+                node.client.getAppAvailabilityAsync = util.promisify(node.client.getAppAvailability);
+                node.client.getSessionsAsync = util.promisify(node.client.getSessions);
+                node.client.joinAsync = util.promisify(node.client.join);
+                node.client.launchAsync = util.promisify(node.client.launch);
 
-                // Execute command
-                let connectOptions = { host: msg.host || node.host };
-
-                node.client.connect(connectOptions, () => {
-                    try {
+                let app = DefaultMediaReceiver;
+                const connectOptions = { host: msg.host || node.host };
+                node.client.connectAsync(connectOptions)
+                    .then(() => {
                         node.status({ fill: "green", shape: "dot", text: "connected" });
 
                         // Allow for override of app to start / command
-                        let app = DefaultMediaReceiver;
                         if (msg.appId && msg.appId !== "") {
                             // Build a generic application to pass into castv2 that will only support launch and close
                             let GenericApplication = function(client, session) { Application.apply(this, arguments); };
@@ -228,48 +220,47 @@ module.exports = function(RED) {
     
                             app = GenericApplication;
                         }
-                        
-                        node.client.getAppAvailability(app.APP_ID, (getAppAvailabilityError, availability) => {
-                            try {
-                                if (getAppAvailabilityError) return node.onError(getAppAvailabilityError);
-    
-                                // Only attempt to use the app if its available
-                                if (!availability || !(app.APP_ID in availability) || availability[app.APP_ID] === false) return node.onStatus(null, null);
-        
-                                // Get current sessions
-                                node.client.getSessions((getSessionsError, sessions) => {
-                                    try {
-                                        if (getSessionsError) return node.onError(getSessionsError);
-        
-                                        let activeSession = sessions.find(session => session.appId === app.APP_ID);
-                                        if (activeSession) {
-                                            // Join active Application session
-                                            node.client.join(activeSession, app, (joinError, receiver) => {
-                                                try {
-                                                    if (joinError) return node.onError(joinError);
+
+                        return node.client.getAppAvailabilityAsync(app.APP_ID);
+                    })
+                    .then(availability => {
+                        // Only attempt to use the app if its available
+                        if (!availability || !(app.APP_ID in availability) || availability[app.APP_ID] === false) {
+                            throw new Error("unavailable");
+                        }
+
+                        return node.client.getSessionsAsync();
+                    })
+                    .then(sessions => {
+                        // Join or launch new session
+                        let activeSession = sessions.find(session => session.appId === app.APP_ID);
+                        if (activeSession) {
+                            return node.client.joinAsync(activeSession, app);
+                        } else {
+                            return node.client.launchAsync(app);
+                        }
+                    })
+                    .then(receiver => {
+                        node.status({ fill: "green", shape: "dot", text: "joined" });
+                        return node.sendCastCommandAsync(receiver, msg.payload);    
+                    })
+                    .then(status => {
+                        node.context().set("status", status);
+                        node.status({ fill: "green", shape: "dot", text: "idle" });
+                        node.cleanup();
             
-                                                    node.status({ fill: "green", shape: "dot", text: "joined" });
-                                                    node.sendCastCommand(receiver, msg.payload);    
-                                                } catch (exception) { node.onError(exception.message); }
-                                            });
-                                        } else {
-                                            // Launch new Application session
-                                            node.client.launch(app, (launchError, receiver) => {
-                                                try {
-                                                    if (launchError) return node.onError(launchError);
-            
-                                                    node.status({ fill: "green", shape: "dot", text: "launched" });
-                                                    node.sendCastCommand(receiver, msg.payload);            
-                                                } catch (exception) { node.onError(exception.message); }
-                                            });
-                                        }
-                                    } catch (exception) { node.onError(exception.message); }
-                                });
-                            } catch (exception) { node.onError(exception.message); }
-                        });
-                    } catch (exception) { node.onError(exception.message); }
-                });
-            } catch (exception) { node.onError(exception.message); }
+                        if (status) send({ payload: status });
+                        if (done) done();
+                    })
+                    .catch(error => errorHandler(error));
+            } catch (exception) { errorHandler(exception); }
+        });
+
+        /*
+         * Node-red close handler
+         */
+        this.on('close', function() {
+            node.cleanup();
         });
 
         /*
