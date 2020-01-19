@@ -75,15 +75,21 @@ module.exports = function(RED) {
                         if (!status) throw new Error("not playing");
 
                         /*
-                        * Execute media control command
-                        * status.supportedMediaCommands bitmask
-                        * 1   Pause
-                        * 2   Seek
-                        * 4   Stream volume
-                        * 8   Stream mute
-                        * 16  Skip forward
-                        * 32  Skip backward
-                        */
+                         * Execute media control command
+                         * status.supportedMediaCommands bitmask
+                         * 1     Pause
+                         * 2     Seek
+                         * 4     Stream volume
+                         * 8     Stream mute
+                         * 16    Skip forward
+                         * 32    Skip backward
+                         * 64    Queue Next
+                         * 128   Queue Prev
+                         * 256   Queue Shuffle
+                         * 1024  Queue Repeat All
+                         * 2048  Queue Repeat One
+                         * 3072  Queue Repeat
+                         */
                         switch (command.type) {
                             case "PAUSE":
                                 if (status.supportedMediaCommands & 1) {
@@ -269,18 +275,21 @@ module.exports = function(RED) {
         this.buildMediaObject = function(media) {
             let urlParts = media.url.split("/");
             let fileName = urlParts.slice(-1)[0].split("?")[0];
+            let defaultMetadata = {
+                metadataType: 0,
+                title: fileName,
+                subtitle: null,
+                images: [
+                    { url: media.image || "https://nodered.org/node-red-icon.png" }
+                ]
+            };
+            let metadata = Object.assign({}, defaultMetadata, media.metadata);
+
             return {
                 contentId : media.url,
                 contentType: media.contentType || node.getContentType(fileName),
                 streamType: media.streamType || "BUFFERED",
-                metadata: {
-                    metadataType: 0,
-                    title: media.title || fileName,
-                    subtitle: null,
-                    images: [
-                        { url: media.image || "https://nodered.org/node-red-icon.png" }
-                    ]
-                },
+                metadata: metadata,
                 textTrackStyle: media.textTrackStyle,
                 tracks: media.tracks
             };
