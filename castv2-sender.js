@@ -64,7 +64,7 @@ module.exports = function(RED) {
 
                     // Get castable URL
                     return googletts(command.text, language, speed)
-                        .then(url => node.buildMediaObject({ url: url, contentType: "audio/mp3", title: command.title ? command.title : "tts" }))
+                        .then(url => node.buildMediaObject({ url: url, contentType: "audio/mp3", title: command.metadata && command.metadata.title ? command.metadata.title : "tts" }))
                         .then(media => receiver.loadAsync(media, { autoplay: true }));
                 }
             } else {
@@ -280,7 +280,7 @@ module.exports = function(RED) {
                 title: fileName,
                 subtitle: null,
                 images: [
-                    { url: media.image || "https://nodered.org/node-red-icon.png" }
+                    { url: "https://nodered.org/node-red-icon.png" }
                 ]
             };
             let metadata = Object.assign({}, defaultMetadata, media.metadata);

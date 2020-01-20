@@ -61,8 +61,7 @@ The following commands are supported as `msg.payload.type`. Note `msg.payload` c
       url: "http://test.com/media.mp3",
       contentType: "audio/mp3", // optional if type can be infered from url file type
       streamType: "BUFFERED", // optional unless you want to send LIVE instead
-      title: "Media title", // optional unless desired
-      image: "http://test.com/media.png" // optional image to pass to cast device for icon, etc.
+      metadata: { ... } // optional for extending default metadata such as title, images, etc.
     }
   }
 }
@@ -84,6 +83,8 @@ Alternatively, you can send an array for `msg.payload.media` with a collection o
 }
 ```
 
+The metadata object is optional, and is a straight pass through of Google's [metadata object structure](https://developers.google.com/cast/docs/reference/messages). Common overridable properties are `metadata.title`, `metadata.subtitle`, `metadata.images[]`. etc. See Google's documentation for other options. By default, the `metadata.metadataType` is `0`, meaning `GenericMediaMetadata`, but a different value can be passed in to allow support of extended metadata properties if needed.
+
 #### TTS Example
 
 ```js
@@ -94,7 +95,9 @@ Alternatively, you can send an array for `msg.payload.media` with a collection o
     text: "Something to say",
     speed: 1, // optional to adjust TTS speed, defaults to 1
     language: "en", // optional to set TTS language, default to en
-    title: "Media title", // optional unless desired
+    metadata: { // optional unless desired, follows normal metadata rules noted above
+      title: "Media title" 
+    }
   }
 }
 ```
@@ -122,9 +125,3 @@ Alternatively, you can send an array for `msg.payload.media` with a collection o
   }
 }
 ```
-
-## Known Issues
-- SEEK is untested so far
-- MEDIA queue is untested
-- VOLUME, MUTE, and UNMUTE may or may not work correctly, hunting an issue on a SHIELD TV
-
