@@ -205,6 +205,7 @@ module.exports = function(RED) {
 
                 // Setup client
                 node.client = new Client();
+                node.client.on("error", errorHandler);
                 node.client.connectAsync = connectOptions => new Promise(resolve => node.client.connect(connectOptions, resolve));
                 node.client.getAppAvailabilityAsync = util.promisify(node.client.getAppAvailability);
                 node.client.getSessionsAsync = util.promisify(node.client.getSessions);
