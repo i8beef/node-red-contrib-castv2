@@ -69,7 +69,7 @@ module.exports = function(RED) {
                 }
             } else {
                 // Initialize media controller by calling getStatus first
-                return getStatusAsync()
+                return receiver.getStatusAsync()
                     .then(status => {
                         // Theres not actually anything playing, exit gracefully
                         if (!status) throw new Error("not playing");
