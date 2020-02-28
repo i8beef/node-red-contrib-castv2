@@ -16,7 +16,7 @@ $ npm install node-red-contrib-castv2
 ```
 ## Usage
 
-This package provides a single node, `castv2-sender`, which will be under the "functions" group in the pallete. The node exposes a single configuration setting, the IP address / host name of the target cast device, but this can be left empty and you can supply `msg.host` on the incoming message as well if that's easier. The node will always output the current google cast device state after every command.
+This package provides a single node, `castv2-sender`, which will be under the "functions" group in the pallete. The node exposes a single configuration setting, the IP address / host name of the target cast device, but this can be left empty and you can supply `msg.host` and optionally `msg.port` on the incoming message as well if that's easier. The node will always output the current google cast device state after every command.
 
 A `msg.appId` can also be specified if you'd like to launch or control an app other than the default media casting application, for instance to launch a custom cast receiver, etc. This is experimental.
 
@@ -25,6 +25,7 @@ At a minimum, a msg.payload *must* be defined, and *must* conform to the format 
 ```js
 {
   host: "1.1.1.1", // optional if specified on the node itself
+  port: 8009, // optional, defaults to 8009
   appId: "", // optional, allows launching and controlling apps other than DefaultMediaReceiver
   payload: {
     type: "TYPE",
@@ -72,6 +73,7 @@ Alternatively, you can send an array for `msg.payload.media` with a collection o
 ```js
 {
   host: "1.1.1.1",
+  port: 8009,
   payload: {
     type: "MEDIA",
     media: [
@@ -90,6 +92,7 @@ The metadata object is optional, and is a straight pass through of Google's [met
 ```js
 {
   host: "1.1.1.1",
+  port: 8009,
   payload: {
     type: "TTS",
     text: "Something to say",
@@ -107,6 +110,7 @@ The metadata object is optional, and is a straight pass through of Google's [met
 ```js
 {
   host: "1.1.1.1",
+  port: 8009,
   payload: {
     type: "VOLUME",
     volume: 100 // 0 to 100
@@ -119,6 +123,7 @@ The metadata object is optional, and is a straight pass through of Google's [met
 ```js
 {
   host: "1.1.1.1",
+  port: 8009,
   payload: {
     type: "SEEK",
     time: 100 // Time to seek to in seconds

@@ -12,6 +12,7 @@ module.exports = function(RED) {
         // Settings
         this.name = config.name;
         this.host = config.host;
+        this.port = config.port;
 
         let node = this;
 
@@ -67,6 +68,8 @@ module.exports = function(RED) {
                         .then(url => node.buildMediaObject({ url: url, contentType: "audio/mp3", title: command.metadata && command.metadata.title ? command.metadata.title : "tts" }))
                         .then(media => receiver.loadAsync(media, { autoplay: true }));
                 }
+            } else if (command.type === "GET_PLAYER_STATUS") {
+                return receiver.getStatusAsync();
             } else {
                 // Initialize media controller by calling getStatus first
                 return receiver.getStatusAsync()
@@ -150,6 +153,8 @@ module.exports = function(RED) {
                     if (command.volume && command.volume >= 0 && command.volume <= 100) {
                         return node.client.setVolumeAsync({ level: command.volume / 100 })
                             .then(volume => node.onVolumeAsync(volume));
+                    } else {
+                        throw new Error("Malformed command");
                     }
                     break;
                 default:
@@ -213,7 +218,10 @@ module.exports = function(RED) {
                 node.client.launchAsync = util.promisify(node.client.launch);
 
                 let app = DefaultMediaReceiver;
-                const connectOptions = { host: msg.host || node.host };
+                const connectOptions = {
+                    host: msg.host || node.host,
+                    port: msg.port || node.port
+                };
                 node.client.connectAsync(connectOptions)
                     .then(() => {
                         node.status({ fill: "green", shape: "dot", text: "connected" });
@@ -252,7 +260,6 @@ module.exports = function(RED) {
                         return node.sendCastCommandAsync(receiver, msg.payload);    
                     })
                     .then(status => {
-                        node.context().set("status", status);
                         node.status({ fill: "green", shape: "dot", text: "idle" });
                         node.cleanup();
             

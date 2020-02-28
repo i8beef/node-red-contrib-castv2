@@ -4,7 +4,8 @@
         color: '#4285F4',
         defaults: {
             name: { value:"" },
-            host: { value:"" }
+            host: { value:"" },
+            port: { value:8009,  validate:RED.validators.number() }
         },
         inputs:1,
         outputs:1,
@@ -25,6 +26,11 @@
         <label for="node-input-host">Host</label>
         <input type="text" id="node-input-host" placeholder="0.0.0.0">
     </div>
+
+    <div class="form-row">
+        <label for="node-input-port">Port</label>
+        <input type="text" id="node-input-port" placeholder="8009">
+    </div>
 </script>
 
 <script type="text/x-red" data-help-name="castv2-sender">
@@ -34,6 +40,8 @@
     <dl class="message-properties">
         <dt class="optional">host <span class="property-type">string</span></dt>
         <dd> the host to cast to.</dd>
+        <dt class="optional">port <span class="property-type">number</span></dt>
+        <dd> the host port to cast to.</dd>
         <dt class="optional">appId <span class="property-type">string</span></dt>
         <dd> cast AppId to launch / control if not DefaultMediaReceiver.</dd>
         <dt>payload <span class="property-type">object</span></dt>
