@@ -3,12 +3,12 @@
         category: 'function',
         color: '#4285F4',
         defaults: {
-            name: { value:"" },
-            host: { value:"" },
-            port: { value:8009,  validate:RED.validators.number() }
+            name: { value: "" },
+            host: { value: "" },
+            port: { value: 8009 }
         },
-        inputs:1,
-        outputs:1,
+        inputs: 1,
+        outputs: 1,
         icon: "bridge.png",
         label: function() {
             return this.name || "castv2-sender";

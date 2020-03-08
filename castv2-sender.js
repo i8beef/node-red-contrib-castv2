@@ -220,7 +220,7 @@ module.exports = function(RED) {
                 let app = DefaultMediaReceiver;
                 const connectOptions = {
                     host: msg.host || node.host,
-                    port: msg.port || node.port
+                    port: msg.port || node.port || 8009
                 };
                 node.client.connectAsync(connectOptions)
                     .then(() => {
