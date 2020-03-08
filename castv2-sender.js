@@ -68,7 +68,7 @@ module.exports = function(RED) {
                         .then(url => node.buildMediaObject({ url: url, contentType: "audio/mp3", title: command.metadata && command.metadata.title ? command.metadata.title : "tts" }))
                         .then(media => receiver.loadAsync(media, { autoplay: true }));
                 }
-            } else if (command.type === "GET_APP_STATUS") {
+            } else if (command.type === "GET_STATUS") {
                 return receiver.getStatusAsync();
             } else {
                 // Initialize media controller by calling getStatus first
@@ -138,7 +138,7 @@ module.exports = function(RED) {
                     return node.client.getVolumeAsync(receiver)
                         .then(volume => node.onVolumeAsync(volume));
                     break;
-                case "GET_STATUS":
+                case "GET_CAST_STATUS":
                     return node.client.getStatusAsync();
                     break;
                 case "MUTE":
@@ -205,7 +205,7 @@ module.exports = function(RED) {
             try {
                 // Validate incoming message
                 if (msg.payload == null || typeof msg.payload !== "object") {
-                    msg.payload = { type: "GET_STATUS" };
+                    msg.payload = { type: "GET_CAST_STATUS" };
                 }
 
                 // Setup client

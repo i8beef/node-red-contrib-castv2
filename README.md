@@ -36,20 +36,21 @@ At a minimum, a msg.payload *must* be defined, and *must* conform to the format 
 
 The following commands are supported as `msg.payload.type`. Note `msg.payload` can be left `null` and on trigger the node will just output the current device status. Unless otherwise stated in the examples below, nothing else is necessary on the `msg.payload` except `msg.payload.type`.
 
-| Command    | Example                                                          |
-|------------|------------------------------------------------------------------|
-| CLOSE      | Closes the current running application / cast session            |
-| GET_STATUS | Gets status from current running application (not device)        |
-| GET_VOLUME | Triggers a query to get current volume information (not used)    |
-| MEDIA      | Load a single media file or queue multiple to play               |
-| MUTE       | Mute cast device                                                 |
-| PAUSE      | Pause current media                                              |
-| PLAY       | Play current media                                               |
-| SEEK       | Seek to time in current media                                    |
-| STOP       | Stop playing current media without exiting application           |
-| TTS        | Create a text-to-speech MP3 and cast to device                   |
-| VOLUME     | Set volume of cast device                                        |
-| UNMUTE     | Unmute cast device                                               |
+| Command         | Example                                                          |
+|-----------------|------------------------------------------------------------------|
+| CLOSE           | Closes the current running application / cast session            |
+| GET_CAST_STATUS | Gets status from cast device                                     |
+| GET_STATUS      | Gets status from current running application (not device)        |
+| GET_VOLUME      | Triggers a query to get current volume information (not used)    |
+| MEDIA           | Load a single media file or queue multiple to play               |
+| MUTE            | Mute cast device                                                 |
+| PAUSE           | Pause current media                                              |
+| PLAY            | Play current media                                               |
+| SEEK            | Seek to time in current media                                    |
+| STOP            | Stop playing current media without exiting application           |
+| TTS             | Create a text-to-speech MP3 and cast to device                   |
+| VOLUME          | Set volume of cast device                                        |
+| UNMUTE          | Unmute cast device                                               |
 
 #### MEDIA Example
 
