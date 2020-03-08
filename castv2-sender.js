@@ -68,7 +68,7 @@ module.exports = function(RED) {
                         .then(url => node.buildMediaObject({ url: url, contentType: "audio/mp3", title: command.metadata && command.metadata.title ? command.metadata.title : "tts" }))
                         .then(media => receiver.loadAsync(media, { autoplay: true }));
                 }
-            } else if (command.type === "GET_PLAYER_STATUS") {
+            } else if (command.type === "GET_APP_STATUS") {
                 return receiver.getStatusAsync();
             } else {
                 // Initialize media controller by calling getStatus first
