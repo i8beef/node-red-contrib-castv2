@@ -22,6 +22,7 @@ module.exports = function(RED) {
 
         // Nodes subscribed to this connection
         this.registeredNodes = {};
+        this.platformStatus = null;
 
         // Build connection options
         this.connectOptions = {
@@ -40,41 +41,25 @@ module.exports = function(RED) {
         ];
 
         /*
-         * Initializes a receiver after launch or join
+         * Launches session
          */
-        this.initReceiver = function(receiver) {
-            node.receiver = receiver;
-            node.receiver.getStatusAsync = util.promisify(node.receiver.getStatus);
-            node.receiver.loadAsync = util.promisify(node.receiver.load);
-            node.receiver.queueLoadAsync = util.promisify(node.receiver.queueLoad);
-            node.receiver.pauseAsync = util.promisify(node.receiver.pause);
-            node.receiver.playAsync = util.promisify(node.receiver.play);
-            node.receiver.seekAsync = util.promisify(node.receiver.seek);
-            node.receiver.stopAsync = util.promisify(node.receiver.stop);
+        this.launchAsync = function(castV2App) {
+            if (!node.connected) {
+                throw new Error("Not connected");
+            }
 
-            node.receiver.on("status", function(status) {
-                node.sendToRegisteredNodes({ payload: { receiver: status } });
-            });
-
-            node.receiver.on("close", function() {
-                node.receiver = null;
-
-                node.setStatusOfRegisteredNodes({ fill: "green", shape: "ring", text: "connected" });
-            });
-
-            node.setStatusOfRegisteredNodes({ fill: "green", shape: "dot", text: "joined" });
+            return node.client.launchAsync(castV2App);
         };
 
         /*
          * Join session
          */
-        this.joinSessionAsync = function(activeSession) {
+        this.joinSessionAsync = function(activeSession, castv2App) {
             if (!node.connected) {
                 throw new Error("Not connected");
             }
 
-            return node.client.joinAsync(activeSession, DefaultMediaReceiver)
-                .then(receiver => node.initReceiver(receiver));
+            return node.client.joinAsync(activeSession, castv2App)
         };
 
         /*
@@ -106,17 +91,6 @@ module.exports = function(RED) {
         };
 
         /*
-         * Call send() on all registered nodes
-         */
-        this.sendToRegisteredNodes = function(result) {
-            for (let id in node.registeredNodes) {
-                if (node.registeredNodes.hasOwnProperty(id)) {
-                    node.registeredNodes[id].send(result);
-                }
-            }
-        }
-
-        /*
          * Call status() on all registered nodes
          */
         this.setStatusOfRegisteredNodes = function(status) {
@@ -126,6 +100,31 @@ module.exports = function(RED) {
                 }
             }
         }
+
+        /*
+         * Joins all nodes matching current sessions
+         */
+        this.joinNodes = function() {
+            if (!node.connected || !node.platformStatus) {
+                throw new Error("Not connected");
+            }
+
+            // Update all registered nodes
+            for (let id in node.registeredNodes) {
+                if (node.registeredNodes.hasOwnProperty(id)) {
+                    let activeSession = null;
+                    if (node.platformStatus.applications) {
+                        activeSession = node.platformStatus.applications.find(session => session.appId === node.registeredNodes[id].castV2App.APP_ID);
+                    }
+
+                    if (activeSession) {
+                        node.registeredNodes[id].join(activeSession);
+                    } else {
+                        node.registeredNodes[id].unjoin();
+                    }
+                }
+            }
+        };
 
         /*
          * Disconnect handler
@@ -140,10 +139,17 @@ module.exports = function(RED) {
             }
             
             // Reset client
-            node.receiver = null;
             node.client = null;
-            node.connecting = false;
+            node.platformStatus = null;
             node.connected = false;
+            node.connecting = false;
+
+            // Disconnect all active sessions
+            for (let id in node.registeredNodes) {
+                if (node.registeredNodes.hasOwnProperty(id)) {
+                    node.registeredNodes[id].unjoin();
+                }
+            }
 
             node.setStatusOfRegisteredNodes({ fill: "red", shape: "ring", text: "disconnected" });
         };
@@ -152,8 +158,8 @@ module.exports = function(RED) {
          * Reconnect handler
          */
         this.reconnect = function() {
-            node.connecting = false;
             node.connected = false;
+            node.connecting = false;
 
             if (!node.closing && Object.keys(node.registeredNodes).length > 0) {
                 clearTimeout(node.reconnectTimeOut);
@@ -196,19 +202,9 @@ module.exports = function(RED) {
                     });
 
                     // Register platform status handler
-                    node.client.on("status", function(data) {
-                        node.sendToRegisteredNodes({ payload: { platform: data } });
-
-                        // If a new app has launched join it
-                        if (!node.receiver && data.applications && data.applications.length > 0) {
-                            let activeSession = data.applications.find(session => session.appId === DefaultMediaReceiver.APP_ID);
-                            if (activeSession) {
-                                node.joinSessionAsync(activeSession);
-                            }
-                        } else {
-                            // No active applications, disconnect receiver
-                            node.receiver = null;
-                        }
+                    node.client.on("status", function(status) {
+                        node.platformStatus = status;
+                        node.joinNodes();
                     });
                     
                     // Alert connecting state
@@ -223,18 +219,15 @@ module.exports = function(RED) {
                             // Set registered node status
                             node.setStatusOfRegisteredNodes({ fill: "green", shape: "ring", text: "connected" });
 
-                            return node.client.getSessionsAsync();
+                            return node.client.getStatusAsync();
                         })
-                        .then(sessions => {
-                            // Join or launch new session
-                            let activeSession = sessions.find(session => session.appId === DefaultMediaReceiver.APP_ID);
-                            if (activeSession) {
-                                return node.joinSessionAsync(activeSession);
-                            }
+                        .then(status => {
+                            node.platformStatus = status;
+                            node.joinNodes();
                         })
                         .catch(error => {
-                            node.connecting = false;
-                            node.connected = false;
+                            console.log(error);
+                            node.disconnect();
                             node.reconnect();
                          });
                 } catch (exception) { console.log(exception); }
@@ -253,16 +246,117 @@ module.exports = function(RED) {
         });
         
         /*
-         * General command handler
+         * Cast command handler
          */
-        this.sendCommand = function(command) {
+        this.sendPlatformCommandAsync = function(command, receiver) {
             if (!node.connected) {
                 throw new Error("Not connected");
             }
 
-            let isPlatformCommand = node.platformCommands.includes(command.type);
+            // Check for platform commands first
+            switch (command.type) {
+                case "CLOSE":
+                    if (receiver) {
+                        return node.client.stopAsync(receiver);
+                    } else {
+                        return node.client.getStatusAsync();
+                    }
+                    break;
+                case "GET_VOLUME":
+                    return node.client.getVolumeAsync()
+                        .then(volume => node.client.getStatusAsync());
+                    break;
+                case "GET_CAST_STATUS":
+                    return node.client.getStatusAsync();
+                    break;
+                case "MUTE":
+                    return node.client.setVolumeAsync({ muted: true })
+                        .then(volume => node.client.getStatusAsync());
+                    break;
+                case "UNMUTE":
+                    return node.client.setVolumeAsync({ muted: false })
+                        .then(volume => node.client.getStatusAsync());
+                    break;
+                case "VOLUME":
+                    if (command.volume && command.volume >= 0 && command.volume <= 100) {
+                        return node.client.setVolumeAsync({ level: command.volume / 100 })
+                            .then(volume => node.client.getStatusAsync());
+                    } else {
+                        throw new Error("Malformed command");
+                    }
+                    break;
+                default:
+                    // If it got this far just error
+                    throw new Error("Malformed command");
+                    break;
+            }
+        };
+    }
+
+    RED.nodes.registerType("castv2-connection", CastV2ConnectionNode);
+
+    function CastV2SenderNode(config) {
+        RED.nodes.createNode(this, config);
+
+        // Settings
+        this.name = config.name;
+        this.connection = config.connection;
+        this.clientNode = RED.nodes.getNode(this.connection);
+
+        // Internal state
+        this.castV2App = DefaultMediaReceiver;
+        this.receiver = null;
+
+        let node = this;
+
+        /*
+         * Joins this node to the active receiver on the client connection
+         */
+        this.join = function(activeSession) {
+            node.clientNode.joinSessionAsync(activeSession, node.castV2App)
+                .then(receiver => node.initReceiver(receiver));
+        };
+
+        /*
+         * Disconnects this node from the active receiver on the client connection
+         */
+        this.unjoin = function() {
+            node.receiver = null
+            node.status({ fill: "green", shape: "ring", text: "connected" });
+        };
+
+        /*
+         * Initializes a receiver after launch or join
+         */
+        this.initReceiver = function(receiver) {
+            node.receiver = receiver;
+            node.receiver.getStatusAsync = util.promisify(node.receiver.getStatus);
+            node.receiver.loadAsync = util.promisify(node.receiver.load);
+            node.receiver.queueLoadAsync = util.promisify(node.receiver.queueLoad);
+            node.receiver.pauseAsync = util.promisify(node.receiver.pause);
+            node.receiver.playAsync = util.promisify(node.receiver.play);
+            node.receiver.seekAsync = util.promisify(node.receiver.seek);
+            node.receiver.stopAsync = util.promisify(node.receiver.stop);
+
+            node.receiver.on("status", function(status) {
+                node.send({ payload: status });
+            });
+
+            node.receiver.on("close", function() {
+                node.receiver = null;
+                node.status({ fill: "green", shape: "ring", text: "connected" });
+            });
+
+            node.status({ fill: "green", shape: "dot", text: "joined" });
+        };
+
+        /*
+         * General command handler
+         */
+        this.sendCommandAsync = function(command) {
+            let isPlatformCommand = node.clientNode.platformCommands.includes(command.type);
             if (isPlatformCommand) {
-                return node.sendPlatformCommandAsync(command);
+                return node.clientNode.sendPlatformCommandAsync(command, node.receiver);
             } else {
                 return node.sendMediaCommandAsync(command);
             }
@@ -274,10 +368,9 @@ module.exports = function(RED) {
         this.sendMediaCommandAsync = function(command) {
             // If not active, launch and try again
             if (!node.receiver) {
-                return node.client.launchAsync(DefaultMediaReceiver)
+                return node.clientNode.launchAsync(node.castV2App)
                     .then(receiver => {
                         node.initReceiver(receiver);
-
                         return node.sendMediaCommandAsync(command);
                     });
             }
@@ -355,49 +448,6 @@ module.exports = function(RED) {
                                 break;
                         }
                     });
-            }
-        };
-
-        /*
-         * Cast command handler
-         */
-        this.sendPlatformCommandAsync = function(command) {
-            // Check for platform commands first
-            switch (command.type) {
-                case "CLOSE":
-                    if (node.receiver) {
-                        return node.client.stopAsync(node.receiver);
-                    } else {
-                        return node.client.getStatusAsync();
-                    }
-                    break;
-                case "GET_VOLUME":
-                    return node.client.getVolumeAsync()
-                        .then(volume => node.client.getStatusAsync());
-                    break;
-                case "GET_CAST_STATUS":
-                    return node.client.getStatusAsync();
-                    break;
-                case "MUTE":
-                    return node.client.setVolumeAsync({ muted: true })
-                        .then(volume => node.client.getStatusAsync());
-                    break;
-                case "UNMUTE":
-                    return node.client.setVolumeAsync({ muted: false })
-                        .then(volume => node.client.getStatusAsync());
-                    break;
-                case "VOLUME":
-                    if (command.volume && command.volume >= 0 && command.volume <= 100) {
-                        return node.client.setVolumeAsync({ level: command.volume / 100 })
-                            .then(volume => node.client.getStatusAsync());
-                    } else {
-                        throw new Error("Malformed command");
-                    }
-                    break;
-                default:
-                    // If it got this far just error
-                    throw new Error("Malformed command");
-                    break;
             }
         };
 
@@ -502,19 +552,6 @@ module.exports = function(RED) {
 
             return contentType || "audio/basic";
         };
-    }
-
-    RED.nodes.registerType("castv2-connection", CastV2ConnectionNode);
-
-    function CastV2SenderNode(config) {
-        RED.nodes.createNode(this, config);
-
-        // Settings
-        this.name = config.name;
-        this.connection = config.connection;
-        this.clientNode = RED.nodes.getNode(this.connection);
-
-        let node = this;
 
         if (node.clientNode) {
             node.status({ fill: "red", shape: "ring", text: "disconnected" });
@@ -523,7 +560,7 @@ module.exports = function(RED) {
             if (node.clientNode.connected) {
                 node.status({ fill: "green", shape: "ring", text: "connected" });
             }
-            
+
             /*
             * Node-red input handler
             */
@@ -549,9 +586,8 @@ module.exports = function(RED) {
                         msg.payload = { type: "GET_CAST_STATUS" };
                     }
 
-                    node.clientNode.sendCommand(msg.payload)
-                        .then(status => {
-                            node.status({ fill: "green", shape: "dot", text: "joined" });                
+                    node.sendCommandAsync(msg.payload)
+                        .then(status => { 
                             if (done) done();
                         })
                         .catch(error => errorHandler(error));
@@ -563,7 +599,10 @@ module.exports = function(RED) {
             */
             node.on('close', function(done) {
                 if (node.clientNode) {
-                    node.clientNode.deregister(node, done);
+                    node.clientNode.deregister(node, function() {
+                        node.receiver = null;
+                        done();
+                    });
                 } else {
                     done();
                 }
