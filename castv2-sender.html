@@ -39,7 +39,7 @@
 </script>
 
 <script type="text/javascript">
-    RED.nodes.registerType('castv2-sender', {
+    RED.nodes.registerType('castv2-default-sender', {
         category: 'network',
         color: '#4285F4',
         defaults: {
@@ -50,12 +50,12 @@
         outputs: 1,
         icon: "castv2-cast.svg",
         label: function() {
-            return this.name || "castv2-sender";
+            return this.name || "castv2-default-sender";
         }
     });
 </script>
 
-<script type="text/x-red" data-template-name="castv2-sender">
+<script type="text/x-red" data-template-name="castv2-default-sender">
     <div class="form-row">
         <label for="node-input-connection"><i class="fa fa-globe"></i> </label>
         <input type="text" id="node-input-connection">

@@ -293,8 +293,6 @@ module.exports = function(RED) {
         };
     }
 
-    RED.nodes.registerType("castv2-connection", CastV2ConnectionNode);
-
     function CastV2SenderNode(config) {
         RED.nodes.createNode(this, config);
 
@@ -358,50 +356,29 @@ module.exports = function(RED) {
             if (isPlatformCommand) {
                 return node.clientNode.sendPlatformCommandAsync(command, node.receiver);
             } else {
-                return node.sendMediaCommandAsync(command);
+                // If not active, launch and try again
+                if (!node.receiver) {
+                    return node.clientNode.launchAsync(node.castV2App)
+                        .then(receiver => {
+                            node.initReceiver(receiver);
+                            return node.sendCommandAsync(command);
+                        });
+                }
+
+                return node.sendAppCommandAsync(command);
             }
         };
+
+        /*
+         * App command handler
+         */
+        this.sendAppCommandAsync = function(command) {};
 
         /*
          * Media command handler
          */
         this.sendMediaCommandAsync = function(command) {
-            // If not active, launch and try again
-            if (!node.receiver) {
-                return node.clientNode.launchAsync(node.castV2App)
-                    .then(receiver => {
-                        node.initReceiver(receiver);
-                        return node.sendMediaCommandAsync(command);
-                    });
-            }
-
-            // Check for load commands
-            if (command.type === "MEDIA") {
-                // Load or queue media command
-                if (command.media) {
-                    if (Array.isArray(command.media)) {
-                        // Queue handling
-                        let mediaOptions = command.mediaOptions || { startIndex: 0, repeatMode: "REPEAT_OFF" };
-                        let queueItems = node.buildQueueItems(command.media);
-                        return node.receiver.queueLoadAsync(queueItems, mediaOptions);
-                    } else {
-                        // Single media handling
-                        let mediaOptions = command.mediaOptions || { autoplay: true };
-                        return node.receiver.loadAsync(node.buildMediaObject(command.media), mediaOptions);
-                    }
-                }
-            } else if (command.type === "TTS") {
-                // Text to speech
-                if (command.text) {
-                    let speed = command.speed || 1;
-                    let language = command.language || "en";
-
-                    // Get castable URL
-                    return googletts(command.text, language, speed)
-                        .then(url => node.buildMediaObject({ url: url, contentType: "audio/mp3", title: command.metadata && command.metadata.title ? command.metadata.title : "tts" }))
-                        .then(media => node.receiver.loadAsync(media, { autoplay: true }));
-                }
-            } else if (command.type === "GET_STATUS") {
+            if (command.type === "GET_STATUS") {
                 return node.receiver.getStatusAsync();
             } else {
                 // Initialize media controller by calling getStatus first
@@ -450,47 +427,64 @@ module.exports = function(RED) {
                     });
             }
         };
+        
+        if (node.clientNode) {
+            node.status({ fill: "red", shape: "ring", text: "disconnected" });
+            node.clientNode.register(node);
 
-        /*
-         * Build a media object
-         */
-        this.buildMediaObject = function(media) {
-            let urlParts = media.url.split("/");
-            let fileName = urlParts.slice(-1)[0].split("?")[0];
-            let defaultMetadata = {
-                metadataType: 0,
-                title: fileName,
-                subtitle: null,
-                images: [
-                    { url: "https://nodered.org/node-red-icon.png" }
-                ]
-            };
-            let metadata = Object.assign({}, defaultMetadata, media.metadata);
+            if (node.clientNode.connected) {
+                node.status({ fill: "green", shape: "ring", text: "connected" });
+            }
 
-            return {
-                contentId : media.url,
-                contentType: media.contentType || node.getContentType(fileName),
-                streamType: media.streamType || "BUFFERED",
-                metadata: metadata,
-                textTrackStyle: media.textTrackStyle,
-                tracks: media.tracks
-            };
-        };
+            /*
+            * Node-red input handler
+            */
+            this.on("input", function(msg, send, done) {
+                // For maximum backwards compatibility, check that send exists.
+                // If this node is installed in Node-RED 0.x, it will need to
+                // fallback to using `node.send`
+                send = send || function() { node.send.apply(node, arguments); };
 
-        /*
-         * Builds a queue item list from passed media arguments
-         */
-        this.buildQueueItems = function(media) {
-            return media.map((item, index) => {
-                return {
-                    autoplay: true,
-                    preloadTime: 5,
-                    orderId: index,
-                    activeTrackIds: [],
-                    media: node.buildMediaObject(item)
+                const errorHandler = function(error) {
+                    node.status({ fill: "red", shape: "ring", text: "error" });
+    
+                    if (done) { 
+                        done(error);
+                    } else {
+                        node.error(error, error.message);
+                    }
                 };
-            })
-        };
+
+                try {
+                    // Validate incoming message
+                    if (msg.payload == null || typeof msg.payload !== "object") {
+                        msg.payload = { type: "GET_CAST_STATUS" };
+                    }
+
+                    node.sendCommandAsync(msg.payload)
+                        .then(status => { 
+                            if (done) done();
+                        })
+                        .catch(error => errorHandler(error));
+                } catch (exception) { errorHandler(exception); }
+            });
+
+            /*
+            * Node-red close handler
+            */
+            node.on('close', function(done) {
+                if (node.clientNode) {
+                    node.clientNode.deregister(node, function() {
+                        node.receiver = null;
+                        done();
+                    });
+                } else {
+                    done();
+                }
+            });
+        } else {
+            node.status({ fill: "red", shape: "ring", text: "unconfigured" });
+        }
 
         /*
          * Get content type for a URL
@@ -552,65 +546,95 @@ module.exports = function(RED) {
 
             return contentType || "audio/basic";
         };
-
-        if (node.clientNode) {
-            node.status({ fill: "red", shape: "ring", text: "disconnected" });
-            node.clientNode.register(node);
-
-            if (node.clientNode.connected) {
-                node.status({ fill: "green", shape: "ring", text: "connected" });
-            }
-
-            /*
-            * Node-red input handler
-            */
-            this.on("input", function(msg, send, done) {
-                // For maximum backwards compatibility, check that send exists.
-                // If this node is installed in Node-RED 0.x, it will need to
-                // fallback to using `node.send`
-                send = send || function() { node.send.apply(node, arguments); };
-
-                const errorHandler = function(error) {
-                    node.status({ fill: "red", shape: "ring", text: "error" });
-    
-                    if (done) { 
-                        done(error);
-                    } else {
-                        node.error(error, error.message);
-                    }
-                };
-
-                try {
-                    // Validate incoming message
-                    if (msg.payload == null || typeof msg.payload !== "object") {
-                        msg.payload = { type: "GET_CAST_STATUS" };
-                    }
-
-                    node.sendCommandAsync(msg.payload)
-                        .then(status => { 
-                            if (done) done();
-                        })
-                        .catch(error => errorHandler(error));
-                } catch (exception) { errorHandler(exception); }
-            });
-
-            /*
-            * Node-red close handler
-            */
-            node.on('close', function(done) {
-                if (node.clientNode) {
-                    node.clientNode.deregister(node, function() {
-                        node.receiver = null;
-                        done();
-                    });
-                } else {
-                    done();
-                }
-            });
-        } else {
-            node.status({ fill: "red", shape: "ring", text: "unconfigured" });
-        }
     }
 
-    RED.nodes.registerType("castv2-sender", CastV2SenderNode);
+    function CastV2DefaultMediaReceiverSenderNode(config) {
+        CastV2DefaultMediaReceiverSenderNode.super_.call(this, config); 
+
+        this.castV2App = DefaultMediaReceiver;
+
+        let node = this;
+
+        /*
+         * App command handler
+         */
+        this.sendAppCommandAsync = function(command) {
+            // Check for load commands
+            if (command.type === "MEDIA") {
+                // Load or queue media command
+                if (command.media) {
+                    if (Array.isArray(command.media)) {
+                        // Queue handling
+                        let mediaOptions = command.mediaOptions || { startIndex: 0, repeatMode: "REPEAT_OFF" };
+                        let queueItems = node.buildQueueItems(command.media);
+                        return node.receiver.queueLoadAsync(queueItems, mediaOptions);
+                    } else {
+                        // Single media handling
+                        let mediaOptions = command.mediaOptions || { autoplay: true };
+                        return node.receiver.loadAsync(node.buildMediaObject(command.media), mediaOptions);
+                    }
+                }
+            } else if (command.type === "TTS") {
+                // Text to speech
+                if (command.text) {
+                    let speed = command.speed || 1;
+                    let language = command.language || "en";
+
+                    // Get castable URL
+                    return googletts(command.text, language, speed)
+                        .then(url => node.buildMediaObject({ url: url, contentType: "audio/mp3", title: command.metadata && command.metadata.title ? command.metadata.title : "tts" }))
+                        .then(media => node.receiver.loadAsync(media, { autoplay: true }));
+                }
+            } else {
+                // Delegate to default media control
+                return node.sendMediaCommandAsync(command);
+            }
+        };
+
+        /*
+         * Build a media object
+         */
+        this.buildMediaObject = function(media) {
+            let urlParts = media.url.split("/");
+            let fileName = urlParts.slice(-1)[0].split("?")[0];
+            let defaultMetadata = {
+                metadataType: 0,
+                title: fileName,
+                subtitle: null,
+                images: [
+                    { url: "https://nodered.org/node-red-icon.png" }
+                ]
+            };
+            let metadata = Object.assign({}, defaultMetadata, media.metadata);
+
+            return {
+                contentId : media.url,
+                contentType: media.contentType || node.getContentType(fileName),
+                streamType: media.streamType || "BUFFERED",
+                metadata: metadata,
+                textTrackStyle: media.textTrackStyle,
+                tracks: media.tracks
+            };
+        };
+
+        /*
+         * Builds a queue item list from passed media arguments
+         */
+        this.buildQueueItems = function(media) {
+            return media.map((item, index) => {
+                return {
+                    autoplay: true,
+                    preloadTime: 5,
+                    orderId: index,
+                    activeTrackIds: [],
+                    media: node.buildMediaObject(item)
+                };
+            })
+        };
+    }
+
+    util.inherits(CastV2DefaultMediaReceiverSenderNode, CastV2SenderNode);
+
+    RED.nodes.registerType("castv2-connection", CastV2ConnectionNode);
+    RED.nodes.registerType("castv2-default-sender", CastV2YouTubeSenderNode);
 }
