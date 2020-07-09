@@ -26,7 +26,8 @@
   "homepage": "https://github.com/i8beef/node-red-contrib-castv2#readme",
   "dependencies": {
     "castv2-client": "^1.2.0",
-    "google-tts-api": "0.0.4"
+    "google-tts-api": "0.0.4",
+    "request": "^2.88.2"
   },
   "node-red": {
     "nodes": {

@@ -40,7 +40,7 @@
 
 <script type="text/javascript">
     RED.nodes.registerType('castv2-default-sender', {
-        category: 'network',
+        category: 'castv2',
         color: '#4285F4',
         defaults: {
             name: { value: "" },
@@ -67,7 +67,7 @@
     </div>
 </script>
 
-<script type="text/x-red" data-help-name="castv2-sender">
+<script type="text/x-red" data-help-name="castv2-default-sender">
     <p>Connects to a Google Cast target to send commands</p>
 
     <h3>Inputs</h3>
@@ -120,11 +120,95 @@
         }
     </pre>
 
+    <h4>TTS command</h4>
+    <p>The TTS command requires a <code>text</code> property to be set. Optional parameters can be set for <code>title</code>, <code>language</code>, and <code>speed</code>.</p>
+
     <h4>SEEK command</h4>
     <p>The SEEK command requires a <code>time</code> property to be set in seconds.</p>
 
-    <h4>TTS command</h4>
-    <p>The TTS command requires a <code>text</code> property to be set. Optional parameters can be set for <code>title</code>, <code>language</code>, and <code>speed</code>.</p>
+    <h4>VOLUME command</h4>
+    <p>The VOLUME command requires a <code>volume</code> property to be set between 0 to 100.</p>
+
+    <h3>References</h3>
+    <ul>
+        <li><a href="https://github.com/i8beef/node-red-contrib-castv2">GitHub</a> - the nodes github repository</li>
+    </ul>
+</script>
+
+<script type="text/javascript">
+    RED.nodes.registerType('castv2-youtube-sender', {
+        category: 'castv2',
+        color: '#4285F4',
+        defaults: {
+            name: { value: "" },
+            connection: { type: "castv2-connection", required: true }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "castv2-cast.svg",
+        label: function() {
+            return this.name || "castv2-youtube-sender";
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="castv2-youtube-sender">
+    <div class="form-row">
+        <label for="node-input-connection"><i class="fa fa-globe"></i> </label>
+        <input type="text" id="node-input-connection">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="castv2-youtube-sender">
+    <p>Connects to a Google Cast target to send commands</p>
+
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd> the command object to send.</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <ol class="node-ports">
+        <li>Standard output
+            <dl class="message-properties">
+                <dt>payload <span class="property-type">object</span></dt>
+                <dd>the currnet cast target status.</dd>
+            </dl>
+        </li>
+        <li>Standard error
+            <dl class="message-properties">
+                <dt>payload <span class="property-type">string</span></dt>
+                <dd>the standard error of the command.</dd>
+            </dl>
+        </li>
+    </ol>
+    
+    <h3>Details</h3>
+    <p>Specify a valid cast target host in settings, or pass in as <code>msg.host</code>. Output will always be current status object from the cast device.<p>
+    <p>A <code>msg.payload</code> object can be passed to specify several different commands. The type of command can be specified by setting <code>msg.payload.type</code> to one of the supported command types:</p>
+    <ul>
+        <li>MEDIA</li>
+        <li>MUTE</li>
+        <li>PAUSE</li>
+        <li>PLAY</li>
+        <li>SEEK</li>
+        <li>STOP</li>
+        <li>TTS</li>
+        <li>VOLUME</li>
+        <li>UNMUTE</li>
+    </ul>
+
+    <h4>MEDIA command</h4>
+    <p>The MEDIA command requires a <code>videoId</code> property to be set.</p>
+
+    <h4>SEEK command</h4>
+    <p>The SEEK command requires a <code>time</code> property to be set in seconds.</p>
 
     <h4>VOLUME command</h4>
     <p>The VOLUME command requires a <code>volume</code> property to be set between 0 to 100.</p>
