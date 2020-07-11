@@ -104,6 +104,17 @@ module.exports = function(RED) {
         }
 
         /*
+         * Call send() on all registered nodes
+         */
+        this.sendToRegisteredNodes = function(msg) {
+            for (let id in node.registeredNodes) {
+                if (node.registeredNodes.hasOwnProperty(id)) {
+                    node.registeredNodes[id].send(msg);
+                }
+            }
+        }
+
+        /*
          * Joins all nodes matching current sessions
          */
         this.joinNodes = function() {
@@ -211,6 +222,8 @@ module.exports = function(RED) {
                     node.client.on("status", function(status) {
                         node.platformStatus = status;
                         node.joinNodes();
+
+                        node.sendToRegisteredNodes({ platform: status });
                     });
 
                     // Alert connecting state
@@ -230,6 +243,8 @@ module.exports = function(RED) {
                         .then(status => {
                             node.platformStatus = status;
                             node.joinNodes();
+
+                            node.sendToRegisteredNodes({ platform: status });
                         })
                         .catch(error => {
                             console.log(error);
