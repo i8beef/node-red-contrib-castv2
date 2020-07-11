@@ -1,3 +1,5 @@
+const SpotifyReceiver = require('./lib/SpotifyReceiver');
+
 module.exports = function(RED) {
     "use strict";
     const util = require('util');
@@ -6,6 +8,8 @@ module.exports = function(RED) {
     const DefaultMediaReceiverAdapter = require('./lib/DefaultMediaReceiverAdapter');
     const YouTubeReceiver = require('./lib/YouTubeReceiver');
     const YouTubeReceiverAdapter = require('./lib/YouTubeReceiverAdapter');
+    const SpotifyReceiver = require('./lib/SpotifyReceiver');
+    const SpotifyReceiverAdapter = require('./lib/SpotifyReceiverAdapter');
     
     function CastV2ConnectionNode(config) {
         RED.nodes.createNode(this, config);
@@ -322,8 +326,20 @@ module.exports = function(RED) {
         this.connection = config.connection;
         this.clientNode = RED.nodes.getNode(this.connection);
 
+        this.settings = {
+            spotify: {
+                accessToken: config.spotifyAccessToken,
+                accessTokenExpiration: config.spotifyAccessTokenExpiration,
+                deviceName: config.spotifyDeviceName
+            }
+        };
+
         // Internal state
-        this.supportedApplications = [ DefaultMediaReceiver, YouTubeReceiver ];
+        this.supportedApplications = [
+            DefaultMediaReceiver,
+            SpotifyReceiver,
+            YouTubeReceiver
+        ];
         this.receiver = null;
         this.adapter = null;
 
@@ -383,6 +399,9 @@ module.exports = function(RED) {
                 case DefaultMediaReceiver.APP_ID:
                     return DefaultMediaReceiverAdapter;
                     break;
+                case SpotifyReceiver.APP_ID:
+                    return SpotifyReceiverAdapter;
+                    break;
                 case YouTubeReceiver.APP_ID:
                     return YouTubeReceiverAdapter;
                     break;
@@ -399,6 +418,9 @@ module.exports = function(RED) {
             switch (command.app) {
                 case "DefaultMediaReceiver":
                     return DefaultMediaReceiver;
+                    break;
+                case "Spotify":
+                    return SpotifyReceiver;
                     break;
                 case "YouTube":
                     return YouTubeReceiver;
