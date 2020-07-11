@@ -175,3 +175,27 @@ The metadata object is optional, and is a straight pass through of Google's [met
   }
 }
 ```
+
+### YouTube Command Example
+
+These are the commands exposed by YouTube receiver. The "app" is required on these commands.
+
+
+| Command         | Example                                                          |
+|-----------------|------------------------------------------------------------------|
+| MEDIA           | Load a single media file                                         |
+
+#### MEDIA Example
+
+Loads media for YouTube.
+
+```js
+{
+  host: "1.1.1.1",
+  payload: {
+    app: "YouTube",
+    type: "MEDIA",
+    videoId: "VideoIdFromYouTube"
+  }
+}
+```
