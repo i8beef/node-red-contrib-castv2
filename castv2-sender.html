@@ -39,7 +39,7 @@
 </script>
 
 <script type="text/javascript">
-    RED.nodes.registerType('castv2-default-sender', {
+    RED.nodes.registerType('castv2-sender', {
         category: 'castv2',
         color: '#4285F4',
         defaults: {
@@ -50,12 +50,12 @@
         outputs: 1,
         icon: "castv2-cast.svg",
         label: function() {
-            return this.name || "castv2-default-sender";
+            return this.name || "castv2-sender";
         }
     });
 </script>
 
-<script type="text/x-red" data-template-name="castv2-default-sender">
+<script type="text/x-red" data-template-name="castv2-sender">
     <div class="form-row">
         <label for="node-input-connection"><i class="fa fa-globe"></i> </label>
         <input type="text" id="node-input-connection">
@@ -67,7 +67,7 @@
     </div>
 </script>
 
-<script type="text/x-red" data-help-name="castv2-default-sender">
+<script type="text/x-red" data-help-name="castv2-sender">
     <p>Connects to a Google Cast target to send commands</p>
 
     <h3>Inputs</h3>
@@ -94,124 +94,77 @@
     
     <h3>Details</h3>
     <p>Specify a valid cast target host in settings, or pass in as <code>msg.host</code>. Output will always be current status object from the cast device.<p>
-    <p>A <code>msg.payload</code> object can be passed to specify several different commands. The type of command can be specified by setting <code>msg.payload.type</code> to one of the supported command types:</p>
+    <p>A <code>msg.payload</code> object can be passed to specify several different commands. The type of command can be specified by setting <code>msg.payload.type</code> to one of the supported command types.</p>
+
+    <h3>Application Choice</h3>
+    <p>This node supports multiple applications (DefaultMediaReceiver, YouTube). The application can be specified on the incoming command as below to trigger launch / control of that app.</p>
+    <pre>
+        {
+            payload: {
+                app: "YouTube"
+                type: "MEDIA",
+                videoId: "1234"
+            }
+        }
+    </pre>
+    <p>Not including the app will always default to the DefaultMediaReceiver. The case of media / platform commands (PLAY, PAUSE, VOLUME, etc.) the "app" can be left out, and it will attempt to join the currently running session of any supported app types.
+    This allows for sending these commands without having to launch a specific app first, as long as the already active application is one of the supported types.</p>
+
+    <h3>Platform commands</h3>
+    <p>Certain global commands for the platform are also supported without having to relaunch the application first.</p>
+
     <ul>
-        <li>MEDIA</li>
+        <li>CLOSE</li>
         <li>MUTE</li>
-        <li>PAUSE</li>
-        <li>PLAY</li>
-        <li>SEEK</li>
-        <li>STOP</li>
-        <li>TTS</li>
         <li>VOLUME</li>
         <li>UNMUTE</li>
     </ul>
 
-    <h4>MEDIA command</h4>
-    <p>The MEDIA command requires a properly formatted <code>media</code> property. It can either be a single media object, or an array of media objects which will send a queue playlist to the cast target.</p>
-    <p>A "media" object requires a <code>url</code> property, but supports additional properties if needed.</p>
-    <pre>
-        {
-            url: "urlOfMedia.mp3",
-            contentType: "audio/mp3",
-            streamType: "BUFFERED or LIVE",
-            title: "optional title",
-            image: "imageUrl"
-        }
-    </pre>
+    <h4>VOLUME command</h4>
+    <p>The VOLUME command requires a <code>volume</code> property to be set between 0 to 100.</p>
+
+    <h3>Media commands</h3>
+    <p>These are the media commands that should be fairly universal across supported applications. They can be run without a specified application to control supported running applications.
+    
+    <ul>
+        <li>PAUSE</li>
+        <li>PLAY</li>
+        <li>SEEK</li>
+        <li>STOP</li>
+    </ul>
+
+    <h4>SEEK command</h4>
+    <p>The SEEK command requires a <code>time</code> property to be set in seconds.</p>
+
+    <h3>DefaultMediaReceiver supporting commands</h3>
+    <p>These are the commands exposed by the DefaultMediaReceiver.</p>
+
+    <ul>
+        <li>MEDIA</li>
+        <li>TTS</li>
+    </ul>
 
     <h4>TTS command</h4>
     <p>The TTS command requires a <code>text</code> property to be set. Optional parameters can be set for <code>title</code>, <code>language</code>, and <code>speed</code>.</p>
 
-    <h4>SEEK command</h4>
-    <p>The SEEK command requires a <code>time</code> property to be set in seconds.</p>
-
-    <h4>VOLUME command</h4>
-    <p>The VOLUME command requires a <code>volume</code> property to be set between 0 to 100.</p>
-
-    <h3>References</h3>
-    <ul>
-        <li><a href="https://github.com/i8beef/node-red-contrib-castv2">GitHub</a> - the nodes github repository</li>
-    </ul>
-</script>
-
-<script type="text/javascript">
-    RED.nodes.registerType('castv2-youtube-sender', {
-        category: 'castv2',
-        color: '#4285F4',
-        defaults: {
-            name: { value: "" },
-            connection: { type: "castv2-connection", required: true }
-        },
-        inputs: 1,
-        outputs: 1,
-        icon: "castv2-cast.svg",
-        label: function() {
-            return this.name || "castv2-youtube-sender";
-        }
-    });
-</script>
-
-<script type="text/x-red" data-template-name="castv2-youtube-sender">
-    <div class="form-row">
-        <label for="node-input-connection"><i class="fa fa-globe"></i> </label>
-        <input type="text" id="node-input-connection">
-    </div>
-
-    <div class="form-row">
-        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
-        <input type="text" id="node-input-name" placeholder="Name">
-    </div>
-</script>
-
-<script type="text/x-red" data-help-name="castv2-youtube-sender">
-    <p>Connects to a Google Cast target to send commands</p>
-
-    <h3>Inputs</h3>
-    <dl class="message-properties">
-        <dt>payload <span class="property-type">object</span></dt>
-        <dd> the command object to send.</dd>
-    </dl>
-
-    <h3>Outputs</h3>
-    <ol class="node-ports">
-        <li>Standard output
-            <dl class="message-properties">
-                <dt>payload <span class="property-type">object</span></dt>
-                <dd>the currnet cast target status.</dd>
-            </dl>
-        </li>
-        <li>Standard error
-            <dl class="message-properties">
-                <dt>payload <span class="property-type">string</span></dt>
-                <dd>the standard error of the command.</dd>
-            </dl>
-        </li>
-    </ol>
-    
-    <h3>Details</h3>
-    <p>Specify a valid cast target host in settings, or pass in as <code>msg.host</code>. Output will always be current status object from the cast device.<p>
-    <p>A <code>msg.payload</code> object can be passed to specify several different commands. The type of command can be specified by setting <code>msg.payload.type</code> to one of the supported command types:</p>
-    <ul>
-        <li>MEDIA</li>
-        <li>MUTE</li>
-        <li>PAUSE</li>
-        <li>PLAY</li>
-        <li>SEEK</li>
-        <li>STOP</li>
-        <li>TTS</li>
-        <li>VOLUME</li>
-        <li>UNMUTE</li>
-    </ul>
-
     <h4>MEDIA command</h4>
-    <p>The MEDIA command requires a <code>videoId</code> property to be set.</p>
-
-    <h4>SEEK command</h4>
-    <p>The SEEK command requires a <code>time</code> property to be set in seconds.</p>
-
-    <h4>VOLUME command</h4>
-    <p>The VOLUME command requires a <code>volume</code> property to be set between 0 to 100.</p>
+    <p>The MEDIA command requires a properly formatted <code>media</code> property. It can either be a single media object, or an array of media objects which will send a queue playlist to the cast target.</p>
+    <p>A "media" object requires a <code>url</code> property, but supports additional properties if needed.</p>
+    
+    <pre>
+        {
+            payload: {
+                type: "MEDIA",
+                media: {
+                    url: "urlOfMedia.mp3",
+                    contentType: "audio/mp3",
+                    streamType: "BUFFERED or LIVE",
+                    title: "optional title",
+                    image: "imageUrl"        
+                }
+            }
+        }
+    </pre>
 
     <h3>References</h3>
     <ul>

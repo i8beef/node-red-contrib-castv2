@@ -1,11 +1,12 @@
 module.exports = function(RED) {
     "use strict";
     const util = require('util');
-    const Client = require("castv2-client").Client;
-    const DefaultMediaReceiver = require("castv2-client").DefaultMediaReceiver;
-    const YouTubeReceiver = require("./lib/YouTubeReceiver");
-    const googletts = require("google-tts-api");
-      
+    const Client = require('castv2-client').Client;
+    const DefaultMediaReceiver = require('castv2-client').DefaultMediaReceiver;
+    const DefaultMediaReceiverAdapter = require('./lib/DefaultMediaReceiverAdapter');
+    const YouTubeReceiver = require('./lib/YouTubeReceiver');
+    const YouTubeReceiverAdapter = require('./lib/YouTubeReceiverAdapter');
+    
     function CastV2ConnectionNode(config) {
         RED.nodes.createNode(this, config);
 
@@ -114,12 +115,16 @@ module.exports = function(RED) {
             for (let id in node.registeredNodes) {
                 if (node.registeredNodes.hasOwnProperty(id)) {
                     let activeSession = null;
+                    let castV2App = null;
                     if (node.platformStatus.applications) {
-                        activeSession = node.platformStatus.applications.find(session => session.appId === node.registeredNodes[id].castV2App.APP_ID);
+                        activeSession = node.platformStatus.applications.find(session => node.registeredNodes[id].supportedApplications.some(supportedApp => supportedApp.APP_ID === session.appId));
+                        if (activeSession) {
+                            castV2App = node.registeredNodes[id].supportedApplications.find(supportedApp => supportedApp.APP_ID === activeSession.appId);
+                        }
                     }
 
-                    if (activeSession) {
-                        node.registeredNodes[id].join(activeSession);
+                    if (activeSession && castV2App) {
+                        node.registeredNodes[id].join(activeSession, castV2App);
                     } else {
                         node.registeredNodes[id].unjoin();
                     }
@@ -303,31 +308,91 @@ module.exports = function(RED) {
         this.clientNode = RED.nodes.getNode(this.connection);
 
         // Internal state
-        this.castV2App = DefaultMediaReceiver;
+        this.supportedApplications = [ DefaultMediaReceiver, YouTubeReceiver ];
         this.receiver = null;
+        this.adapter = null;
 
+        // Media control commands handled by any active receiver
+        this.mediaCommands = [
+            "GET_STATUS",
+            "PAUSE",
+            "PLAY",
+            "SEEK",
+            "STOP"
+        ];
+        
         let node = this;
 
         /*
          * Joins this node to the active receiver on the client connection
          */
-        this.join = function(activeSession) {
-            node.clientNode.joinSessionAsync(activeSession, node.castV2App)
-                .then(receiver => node.initReceiver(receiver));
+        this.join = function(activeSession, castV2App) {
+            node.clientNode.joinSessionAsync(activeSession, castV2App)
+                .then(receiver => node.initReceiver(receiver, castV2App));
         };
 
         /*
          * Disconnects this node from the active receiver on the client connection
          */
         this.unjoin = function() {
-            node.receiver = null
+            node.adapter = null;
+            node.receiver = null;
             node.status({ fill: "green", shape: "ring", text: "connected" });
         };
 
         /*
          * Initializes a receiver after launch or join
          */
-        this.initReceiver = function(receiver) {};
+        this.initReceiver = function(receiver, castV2App) {
+            node.adapter = node.getAdapter(castV2App);
+            node.receiver = node.adapter.initReceiver(node, receiver);
+
+            node.receiver.on("status", function(status) {
+                node.send({ payload: status });
+            });
+    
+            node.receiver.once("close", function() {
+                node.adapter = null;
+                node.receiver = null;
+                node.status({ fill: "green", shape: "ring", text: "connected" });
+            });
+    
+            node.status({ fill: "green", shape: "dot", text: "joined" });
+        };
+
+        /*
+         * Gets adapter for specified application
+         */
+        this.getAdapter = function(castV2App) {
+            switch (castV2App.APP_ID) {
+                case DefaultMediaReceiver.APP_ID:
+                    return DefaultMediaReceiverAdapter;
+                    break;
+                case YouTubeReceiver.APP_ID:
+                    return YouTubeReceiverAdapter;
+                    break;
+                default:
+                    return null;
+                    break;
+            }
+        }
+
+        /*
+         * Gets application for command
+         */
+        this.getCommandApp = function(command) {
+            switch (command.app) {
+                case "DefaultMediaReceiver":
+                    return DefaultMediaReceiver;
+                    break;
+                case "YouTube":
+                    return YouTubeReceiver;
+                    break;
+                default:
+                    return null;
+                    break;
+            }
+        }
 
         /*
          * General command handler
@@ -338,22 +403,25 @@ module.exports = function(RED) {
                 return node.clientNode.sendPlatformCommandAsync(command, node.receiver);
             } else {
                 // If not active, launch and try again
-                if (!node.receiver) {
-                    return node.clientNode.launchAsync(node.castV2App)
+                if (!node.receiver || !node.adapter) {
+                    // Route to app
+                    let castV2App = node.getCommandApp(command);
+
+                    return node.clientNode.launchAsync(castV2App)
                         .then(receiver => {
-                            node.initReceiver(receiver);
+                            node.initReceiver(receiver, castV2App);
                             return node.sendCommandAsync(command);
                         });
                 }
 
-                return node.sendAppCommandAsync(command);
+                let isMediaCommand = node.mediaCommands.includes(command.type);
+                if (isMediaCommand) {
+                    return node.sendMediaCommandAsync(command);
+                } else {
+                    return node.adapter.sendAppCommandAsync(node.receiver, command);
+                }
             }
         };
-
-        /*
-         * App command handler
-         */
-        this.sendAppCommandAsync = function(command) {};
 
         /*
          * Media command handler
@@ -408,7 +476,7 @@ module.exports = function(RED) {
                     });
             }
         };
-        
+
         if (node.clientNode) {
             node.status({ fill: "red", shape: "ring", text: "disconnected" });
             node.clientNode.register(node);
@@ -442,6 +510,10 @@ module.exports = function(RED) {
                         msg.payload = { type: "GET_CAST_STATUS" };
                     }
 
+                    if (msg.payload.app == null) {
+                        msg.payload.app = "DefaultMediaReceiver";
+                    }
+
                     node.sendCommandAsync(msg.payload)
                         .then(status => { 
                             if (done) done();
@@ -456,6 +528,7 @@ module.exports = function(RED) {
             this.on('close', function(done) {
                 if (node.clientNode) {
                     node.clientNode.deregister(node, function() {
+                        node.adapter = null;
                         node.receiver = null;
                         done();
                     });
@@ -466,229 +539,8 @@ module.exports = function(RED) {
         } else {
             node.status({ fill: "red", shape: "ring", text: "unconfigured" });
         }
-
-        /*
-         * Get content type for a URL
-         */
-        this.getContentType = function(fileName) {
-            const contentTypeMap = {
-                "3gp": "video/3gpp",
-                aac: "video/mp4",
-                aif: "audio/x-aiff",
-                aiff: "audio/x-aiff",
-                aifc: "audio/x-aiff",
-                avi: "video/x-msvideo",
-                au: "audio/basic",
-                bmp: "image/bmp",
-                flv: "video/x-flv",
-                gif: "image/gif",
-                ico: "image/x-icon",
-                jpe: "image/jpeg",
-                jpeg: "image/jpeg",
-                jpg: "image/jpeg",
-                m3u: "audio/x-mpegurl",
-                m3u8: "application/x-mpegURL",
-                m4a: "audio/mp4",
-                mid: "audio/mid",
-                midi: "audio/mid",
-                mov: "video/quicktime",
-                movie: "video/x-sgi-movie",
-                mpa: "audio/mpeg",
-                mp2: "audio/x-mpeg",
-                mp3: "audio/mp3",
-                mp4: "audio/mp4",
-                mjpg: "video/x-motion-jpeg",
-                mjpeg: "video/x-motion-jpeg",
-                mpe: "video/mpeg",
-                mpeg: "video/mpeg",
-                mpg: "video/mpeg",
-                ogg: "audio/ogg",
-                ogv: "audio/ogg",
-                png: "image/png",
-                qt: "video/quicktime",
-                ra: "audio/vnd.rn-realaudio",
-                ram: "audio/x-pn-realaudio",
-                rmi: "audio/mid",
-                rpm: "audio/x-pn-realaudio-plugin",
-                snd: "audio/basic",
-                stream: "audio/x-qt-stream",
-                svg: "image/svg",
-                tif: "image/tiff",
-                tiff: "image/tiff",
-                vp8: "video/webm",
-                wav: "audio/vnd.wav",
-                webm: "video/webm",
-                webp: "image/webp",
-                wmv: "video/x-ms-wmv"
-            };
-
-            let ext = fileName.split(".").slice(-1)[0];
-            let contentType = contentTypeMap[ext.toLowerCase()];
-
-            return contentType || "audio/basic";
-        };
     }
-
-    function CastV2DefaultMediaReceiverSenderNode(config) {
-        CastV2DefaultMediaReceiverSenderNode.super_.call(this, config); 
-
-        this.castV2App = DefaultMediaReceiver;
-
-        /*
-         * Initializes a receiver after launch or join
-         */
-        this.initReceiver = function(receiver) {
-            this.receiver = receiver;
-            this.receiver.getStatusAsync = util.promisify(this.receiver.getStatus);
-            this.receiver.loadAsync = util.promisify(this.receiver.load);
-            this.receiver.queueLoadAsync = util.promisify(this.receiver.queueLoad);
-            this.receiver.pauseAsync = util.promisify(this.receiver.pause);
-            this.receiver.playAsync = util.promisify(this.receiver.play);
-            this.receiver.seekAsync = util.promisify(this.receiver.seek);
-            this.receiver.stopAsync = util.promisify(this.receiver.stop);
-
-            let node = this;
-            this.receiver.on("status", function(status) {
-                node.send({ payload: status });
-            });
-
-            this.receiver.once("close", function() {
-                node.receiver = null;
-                node.status({ fill: "green", shape: "ring", text: "connected" });
-            });
-
-            this.status({ fill: "green", shape: "dot", text: "joined" });
-        };
-
-        /*
-         * App command handler
-         */
-        this.sendAppCommandAsync = function(command) {
-            // Check for load commands
-            if (command.type === "MEDIA") {
-                // Load or queue media command
-                if (command.media) {
-                    if (Array.isArray(command.media)) {
-                        // Queue handling
-                        let mediaOptions = command.mediaOptions || { startIndex: 0, repeatMode: "REPEAT_OFF" };
-                        let queueItems = this.buildQueueItems(command.media);
-                        return this.receiver.queueLoadAsync(queueItems, mediaOptions);
-                    } else {
-                        // Single media handling
-                        let mediaOptions = command.mediaOptions || { autoplay: true };
-                        return this.receiver.loadAsync(this.buildMediaObject(command.media), mediaOptions);
-                    }
-                }
-            } else if (command.type === "TTS") {
-                // Text to speech
-                if (command.text) {
-                    let speed = command.speed || 1;
-                    let language = command.language || "en";
-
-                    // Get castable URL
-                    return googletts(command.text, language, speed)
-                        .then(url => this.buildMediaObject({ url: url, contentType: "audio/mp3", title: command.metadata && command.metadata.title ? command.metadata.title : "tts" }))
-                        .then(media => this.receiver.loadAsync(media, { autoplay: true }));
-                }
-            } else {
-                // Delegate to default media control
-                return this.sendMediaCommandAsync(command);
-            }
-        };
-
-        /*
-         * Build a media object
-         */
-        this.buildMediaObject = function(media) {
-            let urlParts = media.url.split("/");
-            let fileName = urlParts.slice(-1)[0].split("?")[0];
-            let defaultMetadata = {
-                metadataType: 0,
-                title: fileName,
-                subtitle: null,
-                images: [
-                    { url: "https://nodered.org/node-red-icon.png" }
-                ]
-            };
-            let metadata = Object.assign({}, defaultMetadata, media.metadata);
-
-            return {
-                contentId : media.url,
-                contentType: media.contentType || node.getContentType(fileName),
-                streamType: media.streamType || "BUFFERED",
-                metadata: metadata,
-                textTrackStyle: media.textTrackStyle,
-                tracks: media.tracks
-            };
-        };
-
-        /*
-         * Builds a queue item list from passed media arguments
-         */
-        this.buildQueueItems = function(media) {
-            return media.map((item, index) => {
-                return {
-                    autoplay: true,
-                    preloadTime: 5,
-                    orderId: index,
-                    activeTrackIds: [],
-                    media: node.buildMediaObject(item)
-                };
-            })
-        };
-    }
-
-    function CastV2YouTubeSenderNode(config) {
-        CastV2YouTubeSenderNode.super_.call(this, config);
-
-        this.castV2App = YouTubeReceiver;
-
-        /*
-         * Initializes a receiver after launch or join
-         */
-        this.initReceiver = function(receiver) {
-            this.receiver = receiver;
-            this.receiver.getStatusAsync = util.promisify(this.receiver.getStatus);
-            this.receiver.loadAsync = util.promisify(this.receiver.load);
-            this.receiver.pauseAsync = util.promisify(this.receiver.pause);
-            this.receiver.playAsync = util.promisify(this.receiver.play);
-            this.receiver.seekAsync = util.promisify(this.receiver.seek);
-            this.receiver.stopAsync = util.promisify(this.receiver.stop);
-
-            let node = this;
-            this.receiver.on("status", function(status) {
-                node.send({ payload: status });
-            });
-
-            this.receiver.once("close", function() {
-                node.receiver = null;
-                node.status({ fill: "green", shape: "ring", text: "connected" });
-            });
-
-            this.status({ fill: "green", shape: "dot", text: "joined" });
-        };
-
-        /*
-         * App command handler
-         */
-        this.sendAppCommandAsync = function(command) {
-            // Check for load commands
-            if (command.type === "MEDIA") {
-                // Load or queue media command
-                if (command.videoId) {
-                    return this.receiver.loadAsync(command.videoId);
-                }
-            } else {
-                // Delegate to default media control
-                return this.sendMediaCommandAsync(command);
-            }
-        };
-    }
-
-    util.inherits(CastV2DefaultMediaReceiverSenderNode, CastV2SenderNode);
-    util.inherits(CastV2YouTubeSenderNode, CastV2SenderNode);
 
     RED.nodes.registerType("castv2-connection", CastV2ConnectionNode);
-    RED.nodes.registerType("castv2-default-sender", CastV2DefaultMediaReceiverSenderNode);
-    RED.nodes.registerType("castv2-youtube-sender", CastV2YouTubeSenderNode);
+    RED.nodes.registerType("castv2-sender", CastV2SenderNode);
 }

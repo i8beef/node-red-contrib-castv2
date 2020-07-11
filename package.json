@@ -16,7 +16,8 @@
     "chromecast",
     "cast",
     "castv2",
-    "google home"
+    "google home",
+    "youtube"
   ],
   "author": "Michael Hallock",
   "license": "MIT",
