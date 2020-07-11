@@ -32,6 +32,15 @@ At a minimum, a msg.payload *must* be defined, and *must* conform to the format 
 }
 ```
 
+### Supported Applications
+
+This node supported a couple of applications with room to grow. This allows it to launch, join active sessions, and control these cast applications in addition to the DefaultMediaReceiver. To control application specific commands (see platform / media commands below for other types), and "app" must be specified on the command to ensure the right application is either joined or launched first. The following applications are supported, and examples can be found below for the message structures sepcific to them:
+
+<ul>
+  <li>DefaultMediaReceiver</li>
+  <li>YouTube</li>
+</ul>
+
 ### Platform Command Example
 
 Platform commands refer to the global commands that the cast target supports regardless of what app is running. Typicall that is these:
