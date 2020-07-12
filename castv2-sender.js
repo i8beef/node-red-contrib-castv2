@@ -198,6 +198,10 @@ module.exports = function(RED) {
                 try {
                     node.client = new Client();
 
+                    // The underlying castv2 client emits for all channels of all clients
+                    // This is typically 3 channels for the actual connection, and at least 2 per receiver
+                    node.client.client.setMaxListeners(100);
+
                     // Setup promisified methods
                     node.client.connectAsync = connectOptions => new Promise(resolve => node.client.connect(connectOptions, resolve));
                     node.client.getAppAvailabilityAsync = util.promisify(node.client.getAppAvailability);
