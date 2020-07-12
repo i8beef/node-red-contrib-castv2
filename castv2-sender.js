@@ -356,6 +356,8 @@ module.exports = function(RED) {
             "GET_STATUS",
             "PAUSE",
             "PLAY",
+            "QUEUE_NEXT",
+            "QUEUE_PREV",
             "SEEK",
             "STOP"
         ];
@@ -530,6 +532,16 @@ module.exports = function(RED) {
                                 break;
                             case "STOP":
                                 return node.receiver.stopAsync();
+                                break;
+                            case "QUEUE_NEXT":
+                                if (status.supportedMediaCommands & 64) {
+                                    return node.receiver.queueNextAsync();
+                                }
+                                break;
+                            case "QUEUE_PREV":
+                                if (status.supportedMediaCommands & 128) {
+                                    return node.receiver.queuePrevAsync();
+                                }
                                 break;
                             default:
                                 throw new Error("Malformed media control command");

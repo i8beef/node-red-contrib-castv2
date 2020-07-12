@@ -85,6 +85,8 @@ do not need to include an app with these as the node will attempt to join any ac
 | PLAY            | Play current media                                               |
 | SEEK            | Seek to time in current media                                    |
 | STOP            | Stop playing current media without exiting application           |
+| QUEUE_NEXT      | Play next media item                                             |
+| QUEUE_PREV      | Play previous media item                                         |
 
 #### STOP Example
 
