@@ -16,14 +16,12 @@ $ npm install node-red-contrib-castv2
 ```
 ## Usage
 
-This package provides a single node, `castv2-sender`, which will be under the "functions" group in the pallete. The node exposes a single configuration setting, the IP address / host name of the target cast device, but this can be left empty and you can supply `msg.host` and optionally `msg.port` on the incoming message as well if that's easier. The node will always output the current google cast device state after every command.
+This package provides a single node, `castv2-sender`, which will be under the "castv2" group in the pallete. The node requires a configured connection, and allows for setting additional settings like authentication for supported cast applications. The node will output the current google cast device platform state or cast application state on published state changes.
 
 At a minimum, a msg.payload *must* be defined, and *must* conform to the format below. Be careful when sending results of other nodes in that it doesn't conflict in some way or unexpected results may occur. General msg format expected on input is as follows:
 
 ```js
 {
-  host: "1.1.1.1", // optional if specified on the node itself
-  port: 8009, // optional, defaults to 8009
   payload: {
     app: "DefaultMediaReceiver", // optional, allows for controlling other supported apps
     type: "TYPE",
@@ -58,7 +56,6 @@ Platform commands refer to the global commands that the cast target supports reg
 
 ```js
 {
-  host: "1.1.1.1",
   payload: {
     type: "MUTE"
   }
@@ -69,8 +66,6 @@ Platform commands refer to the global commands that the cast target supports reg
 
 ```js
 {
-  host: "1.1.1.1",
-  port: 8009,
   payload: {
     type: "VOLUME",
     volume: 100 // 0 to 100
@@ -95,7 +90,6 @@ do not need to include an app with these as the node will attempt to join any ac
 
 ```js
 {
-  host: "1.1.1.1",
   payload: {
     type: "STOP"
   }
@@ -106,7 +100,6 @@ do not need to include an app with these as the node will attempt to join any ac
 
 ```js
 {
-  host: "1.1.1.1",
   port: 8009,
   payload: {
     type: "SEEK",
@@ -132,7 +125,6 @@ Loads media for DefaultMediaReceiver.
 
 ```js
 {
-  host: "1.1.1.1",
   payload: {
     app: "DefaultMediaReceiver",
     type: "MEDIA",
@@ -150,8 +142,6 @@ Alternatively, you can send an array for `msg.payload.media` with a collection o
 
 ```js
 {
-  host: "1.1.1.1",
-  port: 8009,
   payload: {
     app: "DefaultMediaReceiver",
     type: "MEDIA",
@@ -170,8 +160,6 @@ The metadata object is optional, and is a straight pass through of Google's [met
 
 ```js
 {
-  host: "1.1.1.1",
-  port: 8009,
   payload: {
     app: "DefaultMediaReceiver",
     type: "TTS",
@@ -200,7 +188,6 @@ Loads media for YouTube.
 
 ```js
 {
-  host: "1.1.1.1",
   payload: {
     app: "YouTube",
     type: "MEDIA",
