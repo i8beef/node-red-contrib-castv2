@@ -1,10 +1,9 @@
-const SpotifyReceiver = require('./lib/SpotifyReceiver');
-
+process.on('warning', e => console.warn(e.stack));
 module.exports = function(RED) {
     "use strict";
     const util = require('util');
     const Client = require('castv2-client').Client;
-    const DefaultMediaReceiver = require('castv2-client').DefaultMediaReceiver;
+    const DefaultMediaReceiver = require('./lib/DefaultMediaReceiver');
     const DefaultMediaReceiverAdapter = require('./lib/DefaultMediaReceiverAdapter');
     const YouTubeReceiver = require('./lib/YouTubeReceiver');
     const YouTubeReceiverAdapter = require('./lib/YouTubeReceiverAdapter');
@@ -282,7 +281,10 @@ module.exports = function(RED) {
             switch (command.type) {
                 case "CLOSE":
                     if (receiver) {
-                        return node.client.stopAsync(receiver);
+                        return node.client.stopAsync(receiver)
+                            .then(applications => {
+                                return node.client.getStatusAsync(); 
+                            });
                     } else {
                         return node.client.getStatusAsync();
                     }
@@ -340,8 +342,10 @@ module.exports = function(RED) {
             SpotifyReceiver,
             YouTubeReceiver
         ];
+
         this.receiver = null;
         this.adapter = null;
+        this.launching = false;
 
         // Media control commands handled by any active receiver
         this.mediaCommands = [
@@ -358,8 +362,14 @@ module.exports = function(RED) {
          * Joins this node to the active receiver on the client connection
          */
         this.join = function(activeSession, castV2App) {
-            node.clientNode.joinSessionAsync(activeSession, castV2App)
-                .then(receiver => node.initReceiver(receiver, castV2App));
+            // Ignore launches triggered by self launching
+            if (node.launching) return;
+
+            // Only join if not already joined up
+            if (node.receiver == null || !(node.receiver instanceof castV2App)) {
+                node.clientNode.joinSessionAsync(activeSession, castV2App)
+                    .then(receiver => node.initReceiver(receiver, castV2App));
+            }
         };
 
         /*
@@ -367,7 +377,12 @@ module.exports = function(RED) {
          */
         this.unjoin = function() {
             node.adapter = null;
-            node.receiver = null;
+
+            if (node.receiver != null) {
+                node.receiver.close();
+                node.receiver = null;    
+            }
+
             node.status({ fill: "green", shape: "ring", text: "connected" });
         };
 
@@ -439,15 +454,21 @@ module.exports = function(RED) {
             if (isPlatformCommand) {
                 return node.clientNode.sendPlatformCommandAsync(command, node.receiver);
             } else {
-                // If not active, launch and try again
+                // If no active receiver, launch and try again
                 if (!node.receiver || !node.adapter) {
-                    // Route to app
+                    node.launching = true;
                     let castV2App = node.getCommandApp(command);
 
                     return node.clientNode.launchAsync(castV2App)
                         .then(receiver => {
                             node.initReceiver(receiver, castV2App);
+                            node.launching = false;
+
                             return node.sendCommandAsync(command);
+                        })
+                        .finally(() => {
+                            // Ensure on failure we cleanup launching lock
+                            node.launching = false;
                         });
                 }
 
@@ -566,7 +587,14 @@ module.exports = function(RED) {
                 if (node.clientNode) {
                     node.clientNode.deregister(node, function() {
                         node.adapter = null;
-                        node.receiver = null;
+
+                        if (node.receiver != null) {
+                            node.receiver.close();
+                            node.receiver = null;    
+                        }
+
+                        node.launching = false;
+
                         done();
                     });
                 } else {
