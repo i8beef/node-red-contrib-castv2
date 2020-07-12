@@ -36,6 +36,10 @@ This node supported a couple of applications with room to grow. This allows it t
 
 <ul>
   <li>DefaultMediaReceiver</li>
+  <li>GooglePlayMusic - media control only</li>
+  <li>GogolePlayMovies - media control only</li>
+  <li>Netflix - media control only</li>
+  <li>Spotify - media control only</li>
   <li>YouTube</li>
 </ul>
 

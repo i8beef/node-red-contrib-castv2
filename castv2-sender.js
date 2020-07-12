@@ -1,14 +1,17 @@
-process.on('warning', e => console.warn(e.stack));
 module.exports = function(RED) {
     "use strict";
     const util = require('util');
     const Client = require('castv2-client').Client;
     const DefaultMediaReceiver = require('./lib/DefaultMediaReceiver');
     const DefaultMediaReceiverAdapter = require('./lib/DefaultMediaReceiverAdapter');
-    const YouTubeReceiver = require('./lib/YouTubeReceiver');
-    const YouTubeReceiverAdapter = require('./lib/YouTubeReceiverAdapter');
+    const GooglePlayMusicReceiver = require('./lib/GooglePlayMusicReceiver');
+    const GooglePlayMusicReceiverAdapter = require('./lib/GooglePlayMusicReceiverAdapter');
+    const GooglePlayMoviesReceiver = require('./lib/GooglePlayMoviesReceiver');
+    const GooglePlayMoviesReceiverAdapter = require('./lib/GooglePlayMoviesReceiverAdapter');
     const SpotifyReceiver = require('./lib/SpotifyReceiver');
     const SpotifyReceiverAdapter = require('./lib/SpotifyReceiverAdapter');
+    const YouTubeReceiver = require('./lib/YouTubeReceiver');
+    const YouTubeReceiverAdapter = require('./lib/YouTubeReceiverAdapter');
     
     function CastV2ConnectionNode(config) {
         RED.nodes.createNode(this, config);
@@ -343,6 +346,8 @@ module.exports = function(RED) {
         // Internal state
         this.supportedApplications = [
             DefaultMediaReceiver,
+            GooglePlayMusicReceiver,
+            GooglePlayMoviesReceiver,
             SpotifyReceiver,
             YouTubeReceiver
         ];
@@ -420,6 +425,12 @@ module.exports = function(RED) {
                 case DefaultMediaReceiver.APP_ID:
                     return DefaultMediaReceiverAdapter;
                     break;
+                case GooglePlayMoviesReceiver.APP_ID:
+                    return GooglePlayMoviesReceiverAdapter;
+                    break;
+                case GooglePlayMusicReceiver.APP_ID:
+                    return GooglePlayMusicReceiverAdapter;
+                    break;
                 case SpotifyReceiver.APP_ID:
                     return SpotifyReceiverAdapter;
                     break;
@@ -439,6 +450,12 @@ module.exports = function(RED) {
             switch (command.app) {
                 case "DefaultMediaReceiver":
                     return DefaultMediaReceiver;
+                    break;
+                case "GooglePlayMovies":
+                    return GooglePlayMoviesReceiver;
+                    break;
+                case "GooglePlayMusic":
+                    return GooglePlayMusicReceiver;
                     break;
                 case "Spotify":
                     return SpotifyReceiver;
