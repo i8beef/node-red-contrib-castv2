@@ -30,7 +30,7 @@ At a minimum, a msg.payload *must* be defined, and *must* conform to the format 
 }
 ```
 
-## mDNS Discovery
+### mDNS Discovery
 
 Connection nodes can be set up to use either a static IP / port (default 8009), or mDNS discovery be advertised device name. The node-red instance must be running on the same subnet as the target cast device to use the mDNS discovery mechanism. If specified, the mDNS target will take precedence over any specified IP / port settings. 
 
