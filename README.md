@@ -30,6 +30,18 @@ At a minimum, a msg.payload *must* be defined, and *must* conform to the format 
 }
 ```
 
+## mDNS Discovery
+
+Connection nodes can be set up to use either a static IP / port (default 8009), or mDNS discovery be advertised device name. The node-red instance must be running on the same subnet as the target cast device to use the mDNS discovery mechanism. If specified, the mDNS target will take precedence over any specified IP / port settings. 
+
+mDNS usage enabled the ability to maintain a stable connection to Cast Groups.
+
+To use mDNS in Docker containers, the node-red instance must either be started with `--net=host`, or the multicast packets must be reflected into the Docker network by an image that has access to both networks. The below command will start an image that can do this without exposing the node-red instance to the host network, though any suitable reflector should do.
+
+```
+docker run --restart=always --name mdns-bridge -dit --net=host wquist/mdns-bridge:latest <HOSTINTERFACE>
+```
+
 ### Supported Applications
 
 This node supported a couple of applications with room to grow. This allows it to launch, join active sessions, and control these cast applications in addition to the DefaultMediaReceiver. To control application specific commands (see platform / media commands below for other types), and "app" must be specified on the command to ensure the right application is either joined or launched first. The following applications are supported, and examples can be found below for the message structures sepcific to them:
