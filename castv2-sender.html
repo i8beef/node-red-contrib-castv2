@@ -2,13 +2,18 @@
     RED.nodes.registerType('castv2-connection', {
         category: 'config',
         defaults: {
-            name: { value: "", required: true },
-            host: { value: "", required: true },
+            name: { value: "" },
+            target: { value: "" },
+            host: { value: "" },
             port: { value: 8009 }
         },
         label: function() {
             if (this.name) {
                 return this.name;
+            }
+
+            if (this.target) {
+                return this.target;
             }
 
             let lab = this.host;
@@ -17,11 +22,39 @@
             }
 
             return lab;
+        },
+        oneditprepare: function () {
+            $('#node-config-lookup-ipaddress').click(() => {
+                $('#node-config-lookup-ipaddress-icon').removeClass('fa-search');
+                $('#node-config-lookup-ipaddress-icon').addClass('spinner');
+                $('#node-config-lookup-ipaddress').addClass('disabled');
+                $.getJSON('googleCastDevices', data => {
+                    $('#node-config-lookup-ipaddress-icon').addClass('fa-search');
+                    $('#node-config-lookup-ipaddress-icon').removeClass('spinner');
+                    $('#node-config-lookup-ipaddress').removeClass('disabled');
+                    let items = data || [];
+                    items = items.map(x => x.name);
+                    $('#node-config-input-target')
+                        .autocomplete({
+                            source: items,
+                            minLength: 0,
+                            close: function(_event, _ui) {
+                                $('#node-config-input-target').autocomplete('destroy');
+                            }
+                        }).autocomplete('search','');
+                });
+            });
         }
     });
 </script>
 
 <script type="text/x-red" data-template-name="castv2-connection">
+    <div class="form-row">
+        <label for="node-config-input-target">Target</label>
+        <input type="text" id="node-config-input-target" style="width:61%;" placeholder="Target name">
+        <a id="node-config-lookup-ipaddress" class="red-ui-button"><i id="node-config-lookup-ipaddress-icon" class="fa fa-search"></i></a>
+    </div>
+
     <div class="form-row">
         <label for="node-config-input-host">Host</label>
         <input type="text" id="node-config-input-host" placeholder="0.0.0.0">
@@ -36,6 +69,17 @@
         <label for="node-config-input-name"><i class="icon-tag"></i> Name</label>
         <input type="text" id="node-config-input-name" placeholder="Name">
     </div>
+</script>
+
+<script type="text/x-red" data-help-name="castv2-connection">
+    <p>Sets up a Google Cast target connection</p>
+
+    <h3>Target</h3>
+    <p>Named target mode. Requires node-red instance to be on the same network as the cast target for mDNS traversal. Search button will doa one time scan to find available targets. Speaker groups will track announced mDNS address changes.</p>
+
+    <h3>Host / Port</h3>
+    <p>Static host and port mode. Defaults to port 8009 for primary cast target. Can specify other ports for things like speaker groups, though targets in a group will randomly change ports and "master" IP on occasion.</p>
+    <p>Can be used in cases where mDNS traversal is not possible, e.g. VLAN segregations / Docker instances not using host network.</p>
 </script>
 
 <script type="text/javascript">
@@ -102,7 +146,7 @@
         <li>Standard output
             <dl class="message-properties">
                 <dt>payload <span class="property-type">object</span></dt>
-                <dd>the currnet cast target status.</dd>
+                <dd>the current cast target status.</dd>
             </dl>
         </li>
         <li>Standard error

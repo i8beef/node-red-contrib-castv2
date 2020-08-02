@@ -1,7 +1,11 @@
 module.exports = function(RED) {
     "use strict";
     const util = require('util');
+    const net = require('net');
+
     const Client = require('castv2-client').Client;
+    const Bonjour = require('bonjour');
+
     const DefaultMediaReceiver = require('./lib/DefaultMediaReceiver');
     const DefaultMediaReceiverAdapter = require('./lib/DefaultMediaReceiverAdapter');
     const GooglePlayMusicReceiver = require('./lib/GooglePlayMusicReceiver');
@@ -12,7 +16,7 @@ module.exports = function(RED) {
     const SpotifyReceiverAdapter = require('./lib/SpotifyReceiverAdapter');
     const YouTubeReceiver = require('./lib/YouTubeReceiver');
     const YouTubeReceiverAdapter = require('./lib/YouTubeReceiverAdapter');
-    
+
     function CastV2ConnectionNode(config) {
         RED.nodes.createNode(this, config);
 
@@ -20,6 +24,7 @@ module.exports = function(RED) {
 
         // Settings
         this.name = config.name;
+        this.target = config.target;
         this.host = config.host;
         this.port = config.port;
 
@@ -32,12 +37,6 @@ module.exports = function(RED) {
         this.registeredNodes = {};
         this.platformStatus = null;
 
-        // Build connection options
-        this.connectOptions = {
-            host: this.host,
-            port: this.port || 8009
-        };
-        
         // Platform commands handled by client directly
         this.platformCommands = [
             "CLOSE",
@@ -75,6 +74,7 @@ module.exports = function(RED) {
          */
         this.register = function(castV2Node) {
             node.registeredNodes[castV2Node.id] = castV2Node;
+
             if (Object.keys(node.registeredNodes).length === 1) {
                 node.connect();
             }
@@ -240,7 +240,25 @@ module.exports = function(RED) {
                     node.setStatusOfRegisteredNodes({ fill: "yellow", shape: "ring", text: "connecting" });
 
                     // Connect
-                    node.client.connectAsync(node.connectOptions)
+                    discoverCastTargetsAsync()
+                        .then(castTargets => {
+                            if (node.target) {
+                                // Use target if supplied
+                                let discoveredTarget = castTargets.find(x => x.name === node.target);
+                                return {
+                                    host: discoveredTarget != null ? discoveredTarget.address : "0.0.0.0",
+                                    port: discoveredTarget != null ? discoveredTarget.port : 8009
+                                };        
+                            } else {
+                                return {
+                                    host: node.host,
+                                    port: node.port || 8009
+                                };
+                            }
+                        })
+                        .then(connectOptions => {
+                            return node.client.connectAsync(connectOptions);
+                        })
                         .then(() => {
                             node.connected = true;
                             node.connecting = false;
@@ -269,11 +287,14 @@ module.exports = function(RED) {
          * Close handler
          */
         this.on('close', function(done) {
-            node.closing = true;
-
-            node.disconnect();
-
-            done();
+            try {
+                node.closing = true;
+                node.disconnect();    
+                done();
+            } catch(error) {
+                // Swallow any failures here
+                done();
+            }
         });
 
         /*
@@ -327,6 +348,8 @@ module.exports = function(RED) {
         };
     }
 
+    RED.nodes.registerType("castv2-connection", CastV2ConnectionNode);
+
     function CastV2SenderNode(config) {
         RED.nodes.createNode(this, config);
 
@@ -366,7 +389,7 @@ module.exports = function(RED) {
             "SEEK",
             "STOP"
         ];
-        
+
         let node = this;
 
         /*
@@ -407,13 +430,13 @@ module.exports = function(RED) {
             node.receiver.on("status", function(status) {
                 node.send({ payload: status });
             });
-    
+
             node.receiver.once("close", function() {
                 node.adapter = null;
                 node.receiver = null;
                 node.status({ fill: "green", shape: "ring", text: "connected" });
             });
-    
+
             node.status({ fill: "green", shape: "dot", text: "joined" });
         };
 
@@ -489,9 +512,10 @@ module.exports = function(RED) {
 
                             return node.sendCommandAsync(command);
                         })
-                        .finally(() => {
+                        .catch(error => {
                             // Ensure on failure we cleanup launching lock
                             node.launching = false;
+                            throw error;
                         });
                 }
 
@@ -587,7 +611,7 @@ module.exports = function(RED) {
 
                 const errorHandler = function(error) {
                     node.status({ fill: "red", shape: "ring", text: "error" });
-    
+
                     if (done) { 
                         done(error);
                     } else {
@@ -617,20 +641,25 @@ module.exports = function(RED) {
             * Node-red close handler
             */
             this.on('close', function(done) {
-                if (node.clientNode) {
-                    node.clientNode.deregister(node, function() {
-                        node.adapter = null;
-
-                        if (node.receiver != null) {
-                            node.receiver.close();
-                            node.receiver = null;    
-                        }
-
-                        node.launching = false;
-
+                try {
+                    if (node.clientNode) {
+                        node.clientNode.deregister(node, function() {
+                            node.adapter = null;
+    
+                            if (node.receiver != null) {
+                                node.receiver.close();
+                                node.receiver = null;    
+                            }
+    
+                            node.launching = false;
+    
+                            done();
+                        });
+                    } else {
                         done();
-                    });
-                } else {
+                    }    
+                } catch(error) {
+                    // swallow any errors here
                     done();
                 }
             });
@@ -639,6 +668,50 @@ module.exports = function(RED) {
         }
     }
 
-    RED.nodes.registerType("castv2-connection", CastV2ConnectionNode);
     RED.nodes.registerType("castv2-sender", CastV2SenderNode);
+
+    /*
+     * Expose discover endpoint for connection targets
+     */
+    RED.httpAdmin.get('/googleCastDevices', (req, res) => {
+        discoverCastTargetsAsync()
+            .then(castTargets => {
+                res.json(castTargets);
+            })
+            .catch(error => res.send(500));
+    });
+
+    /*
+     * Discover cast targets
+     */
+    function discoverCastTargetsAsync() {
+        return new Promise((resolve, reject) => {
+            try {
+                const bonjour = require('bonjour')();
+                const castTargets = [];
+                const bonjourBrowser = bonjour.find(
+                    { type: 'googlecast' },
+                    service => {
+                        castTargets.push({
+                            name: service.txt.fn,
+                            address: service.addresses.find(address => net.isIPv4(address)),
+                            port: service.port
+                        });
+                    });
+
+                // await responses
+                setTimeout(() => {
+                    try {
+                        bonjourBrowser.stop();
+                        bonjour.destroy();
+                        resolve(castTargets);    
+                    } catch (error) {
+                        reject(error);
+                    }                      
+                }, 3000);  
+            } catch (error) {
+                reject(error);
+            }  
+        });
+    };
 }
