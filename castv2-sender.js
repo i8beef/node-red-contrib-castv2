@@ -609,6 +609,15 @@ module.exports = function(RED) {
                 // fallback to using `node.send`
                 send = send || function() { node.send.apply(node, arguments); };
 
+                // Reset the node status
+                if (node.receiver != null && node.adapter != null) {
+                    node.status({ fill: "green", shape: "dot", text: "joined" });
+                } else if (node.clientNode.connected) {
+                    node.status({ fill: "green", shape: "ring", text: "connected" });
+                } else {
+                    node.status({ fill: "red", shape: "ring", text: "disconnected" });
+                }
+    
                 const errorHandler = function(error) {
                     node.status({ fill: "red", shape: "ring", text: "error" });
 
