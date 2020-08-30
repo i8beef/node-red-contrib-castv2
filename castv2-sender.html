@@ -156,7 +156,7 @@
             </dl>
         </li>
     </ol>
-    
+
     <h3>Details</h3>
     <p>Specify a valid cast target configuration in settings. Output will always be current status object from the cast device, or active cast session.<p>
     <p>A <code>msg.payload</code> object can be passed to specify several different commands. The type of command can be specified by setting <code>msg.payload.type</code> to one of the supported command types.</p>
@@ -190,7 +190,7 @@
 
     <h3>Media commands</h3>
     <p>These are the media commands that should be fairly universal across supported applications. They can be run without a specified application to control supported running applications.
-    
+
     <ul>
         <li>PAUSE</li>
         <li>PLAY</li>
@@ -217,7 +217,7 @@
     <h4>MEDIA command</h4>
     <p>The MEDIA command requires a properly formatted <code>media</code> property. It can either be a single media object, or an array of media objects which will send a queue playlist to the cast target.</p>
     <p>A "media" object requires a <code>url</code> property, but supports additional properties if needed.</p>
-    
+
     <pre>
         {
             payload: {
@@ -227,7 +227,7 @@
                     contentType: "audio/mp3",
                     streamType: "BUFFERED or LIVE",
                     title: "optional title",
-                    image: "imageUrl"        
+                    image: "imageUrl"
                 }
             }
         }

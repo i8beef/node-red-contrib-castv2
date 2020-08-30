@@ -186,7 +186,7 @@ module.exports = function(RED) {
 
             if (!node.closing && Object.keys(node.registeredNodes).length > 0) {
                 clearTimeout(node.reconnectTimeOut);
-                node.reconnectTimeOut = setTimeout(() => { node.connect(); }, 3000);    
+                node.reconnectTimeOut = setTimeout(() => { node.connect(); }, 3000);
             }
         };
 
@@ -248,7 +248,7 @@ module.exports = function(RED) {
                                 return {
                                     host: discoveredTarget != null ? discoveredTarget.address : "0.0.0.0",
                                     port: discoveredTarget != null ? discoveredTarget.port : 8009
-                                };        
+                                };
                             } else {
                                 return {
                                     host: node.host,
@@ -270,9 +270,12 @@ module.exports = function(RED) {
                         })
                         .then(status => {
                             node.platformStatus = status;
-                            node.joinNodes();
 
+                            // Send initial cast device platform status
                             node.sendToRegisteredNodes({ platform: status });
+
+                            // Join all nodes
+                            node.joinNodes();
                         })
                         .catch(error => {
                             console.log(error);
@@ -289,7 +292,7 @@ module.exports = function(RED) {
         this.on('close', function(done) {
             try {
                 node.closing = true;
-                node.disconnect();    
+                node.disconnect();
                 done();
             } catch(error) {
                 // Swallow any failures here
@@ -311,7 +314,7 @@ module.exports = function(RED) {
                     if (receiver) {
                         return node.client.stopAsync(receiver)
                             .then(applications => {
-                                return node.client.getStatusAsync(); 
+                                return node.client.getStatusAsync();
                             });
                     } else {
                         return node.client.getStatusAsync();
@@ -396,7 +399,7 @@ module.exports = function(RED) {
          * Joins this node to the active receiver on the client connection
          */
         this.join = function(activeSession, castV2App) {
-            // Ignore launches triggered by self launching
+            // Ignore launches triggered by self launching in sendCommandAsync
             if (node.launching) return;
 
             // Only join if not already joined up
@@ -414,7 +417,7 @@ module.exports = function(RED) {
 
             if (node.receiver != null) {
                 node.receiver.close();
-                node.receiver = null;    
+                node.receiver = null;
             }
 
             node.status({ fill: "green", shape: "ring", text: "connected" });
@@ -438,6 +441,16 @@ module.exports = function(RED) {
             });
 
             node.status({ fill: "green", shape: "dot", text: "joined" });
+
+            // Send initial receiver state
+            node.receiver.getStatusAsync()
+                .then(status => {
+                    if (status) {
+                        node.send({ payload: status });
+                    } else {
+                        node.send({ payload: null });
+                    }
+                });
         };
 
         /*
@@ -497,8 +510,21 @@ module.exports = function(RED) {
          */
         this.sendCommandAsync = function(command) {
             let isPlatformCommand = node.clientNode.platformCommands.includes(command.type);
+            let isMediaCommand = node.mediaCommands.includes(command.type);
             if (isPlatformCommand) {
                 return node.clientNode.sendPlatformCommandAsync(command, node.receiver);
+            } else if (isMediaCommand) {
+                // If no active receiver, error
+                if (!node.receiver || !node.adapter) {
+                    // Calling GET_STATUS without a receiver should just return null
+                    if (command.type === "GET_STATUS") {
+                        return Promise.resolve(null);
+                    }
+
+                    throw new Error("No active receiver application");
+                }
+
+                return node.sendMediaCommandAsync(command);
             } else {
                 // If no active receiver, launch and try again
                 if (!node.receiver || !node.adapter) {
@@ -519,12 +545,7 @@ module.exports = function(RED) {
                         });
                 }
 
-                let isMediaCommand = node.mediaCommands.includes(command.type);
-                if (isMediaCommand) {
-                    return node.sendMediaCommandAsync(command);
-                } else {
-                    return node.adapter.sendAppCommandAsync(node.receiver, command);
-                }
+                return node.adapter.sendAppCommandAsync(node.receiver, command);
             }
         };
 
@@ -617,11 +638,11 @@ module.exports = function(RED) {
                 } else {
                     node.status({ fill: "red", shape: "ring", text: "disconnected" });
                 }
-    
+
                 const errorHandler = function(error) {
                     node.status({ fill: "red", shape: "ring", text: "error" });
 
-                    if (done) { 
+                    if (done) {
                         done(error);
                     } else {
                         node.error(error, error.message);
@@ -640,7 +661,11 @@ module.exports = function(RED) {
 
                     node.sendCommandAsync(msg.payload)
                         .then(status => {
-                            if (status != null) {
+                            // Handle solicited messages
+                            status = status || null;
+                            if (msg.payload.type === "GET_CAST_STATUS" || msg.payload.type === "GET_VOLUME") {
+                                node.send({ platform: status });
+                            } else if (msg.payload.type === "GET_STATUS") {
                                 node.send({ payload: status });
                             }
 
@@ -658,19 +683,19 @@ module.exports = function(RED) {
                     if (node.clientNode) {
                         node.clientNode.deregister(node, function() {
                             node.adapter = null;
-    
+
                             if (node.receiver != null) {
                                 node.receiver.close();
-                                node.receiver = null;    
+                                node.receiver = null;
                             }
-    
+
                             node.launching = false;
-    
+
                             done();
                         });
                     } else {
                         done();
-                    }    
+                    }
                 } catch(error) {
                     // swallow any errors here
                     done();
@@ -717,14 +742,14 @@ module.exports = function(RED) {
                     try {
                         bonjourBrowser.stop();
                         bonjour.destroy();
-                        resolve(castTargets);    
+                        resolve(castTargets);
                     } catch (error) {
                         reject(error);
-                    }                      
-                }, 3000);  
+                    }
+                }, 3000);
             } catch (error) {
                 reject(error);
-            }  
+            }
         });
     };
 }

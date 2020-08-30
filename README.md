@@ -32,7 +32,7 @@ At a minimum, a msg.payload *must* be defined, and *must* conform to the format 
 
 ### mDNS Discovery
 
-Connection nodes can be set up to use either a static IP / port (default 8009), or mDNS discovery be advertised device name. The node-red instance must be running on the same subnet as the target cast device to use the mDNS discovery mechanism. If specified, the mDNS target will take precedence over any specified IP / port settings. 
+Connection nodes can be set up to use either a static IP / port (default 8009), or mDNS discovery be advertised device name. The node-red instance must be running on the same subnet as the target cast device to use the mDNS discovery mechanism. If specified, the mDNS target will take precedence over any specified IP / port settings.
 
 mDNS usage enabled the ability to maintain a stable connection to Cast Groups.
 
@@ -128,7 +128,7 @@ do not need to include an app with these as the node will attempt to join any ac
 
 ### DefaultMediaReceiver Command Example
 
-These are the commands exposed by the DefaultMediaReceiver for playing generic media URLs. Because the "app" defaults to this, app CAN be omitted 
+These are the commands exposed by the DefaultMediaReceiver for playing generic media URLs. Because the "app" defaults to this, app CAN be omitted
 from the command. It is provided below for completeness.
 
 
@@ -185,7 +185,7 @@ The metadata object is optional, and is a straight pass through of Google's [met
     speed: 1, // optional to adjust TTS speed, defaults to 1
     language: "en", // optional to set TTS language, default to en
     metadata: { // optional unless desired, follows normal metadata rules noted above
-      title: "Media title" 
+      title: "Media title"
     }
   }
 }
