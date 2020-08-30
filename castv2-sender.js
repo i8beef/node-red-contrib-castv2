@@ -567,7 +567,7 @@ module.exports = function(RED) {
                                 return node.receiver.playAsync();
                                 break;
                             case "SEEK":
-                                if (command.time && status.supportedMediaCommands & 2) {
+                                if (status.supportedMediaCommands & 2 && command.time) {
                                     return node.receiver.seekAsync(command.time);
                                 }
                                 break;
@@ -639,7 +639,11 @@ module.exports = function(RED) {
                     }
 
                     node.sendCommandAsync(msg.payload)
-                        .then(status => { 
+                        .then(status => {
+                            if (status != null) {
+                                node.send({ payload: status });
+                            }
+
                             if (done) done();
                         })
                         .catch(error => errorHandler(error));
