@@ -526,17 +526,19 @@ module.exports = function(RED) {
 
                 return node.sendMediaCommandAsync(command);
             } else {
+                // App specific command, determine app
+                let castV2App = node.getCommandApp(command);
+
                 // If no active receiver, launch and try again
-                if (!node.receiver || !node.adapter) {
+                if (!node.receiver || !node.adapter || node.receiver.APP_ID !== castV2App.APP_ID) {
                     node.launching = true;
-                    let castV2App = node.getCommandApp(command);
 
                     return node.clientNode.launchAsync(castV2App)
                         .then(receiver => {
                             node.initReceiver(receiver, castV2App);
                             node.launching = false;
 
-                            return node.sendCommandAsync(command);
+                            return node.adapter.sendAppCommandAsync(node.receiver, command);
                         })
                         .catch(error => {
                             // Ensure on failure we cleanup launching lock
