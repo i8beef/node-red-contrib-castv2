@@ -579,6 +579,7 @@ module.exports = function(RED) {
                         * 1024  Queue Repeat All
                         * 2048  Queue Repeat One
                         * 3072  Queue Repeat
+                        * 12303 All Basic Media
                         */
                         switch (command.type) {
                             case "PAUSE":
@@ -598,12 +599,12 @@ module.exports = function(RED) {
                                 return node.receiver.stopAsync();
                                 break;
                             case "QUEUE_NEXT":
-                                if (status.supportedMediaCommands & 64) {
+                                if (status.supportedMediaCommands & 64 || status.supportedMediaCommands & 12303) {
                                     return node.receiver.queueNextAsync();
                                 }
                                 break;
                             case "QUEUE_PREV":
-                                if (status.supportedMediaCommands & 128) {
+                                if (status.supportedMediaCommands & 128 || status.supportedMediaCommands & 12303) {
                                     return node.receiver.queuePrevAsync();
                                 }
                                 break;
