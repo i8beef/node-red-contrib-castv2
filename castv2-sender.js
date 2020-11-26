@@ -16,6 +16,8 @@ module.exports = function(RED) {
     const SpotifyReceiverAdapter = require('./lib/SpotifyReceiverAdapter');
     const YouTubeReceiver = require('./lib/YouTubeReceiver');
     const YouTubeReceiverAdapter = require('./lib/YouTubeReceiverAdapter');
+    const TuneInReceiver = require('./lib/TuneInReceiver');
+    const TuneInReceiverAdapter = require('./lib/TuneInReceiverAdapter');
 
     function CastV2ConnectionNode(config) {
         RED.nodes.createNode(this, config);
@@ -375,7 +377,8 @@ module.exports = function(RED) {
             GooglePlayMusicReceiver,
             GooglePlayMoviesReceiver,
             SpotifyReceiver,
-            YouTubeReceiver
+            YouTubeReceiver,
+            TuneInReceiver
         ];
 
         this.receiver = null;
@@ -473,6 +476,9 @@ module.exports = function(RED) {
                 case YouTubeReceiver.APP_ID:
                     return YouTubeReceiverAdapter;
                     break;
+                case TuneInReceiver.APP_ID:
+                    return TuneInReceiverAdapter;
+                    break;
                 default:
                     return null;
                     break;
@@ -498,6 +504,9 @@ module.exports = function(RED) {
                     break;
                 case "YouTube":
                     return YouTubeReceiver;
+                    break;
+                case "TuneIn":
+                    return TuneInReceiver;
                     break;
                 default:
                     return null;
