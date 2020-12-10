@@ -8,16 +8,16 @@ module.exports = function(RED) {
 
     const DefaultMediaReceiver = require('./lib/DefaultMediaReceiver');
     const DefaultMediaReceiverAdapter = require('./lib/DefaultMediaReceiverAdapter');
-    const GooglePlayMusicReceiver = require('./lib/GooglePlayMusicReceiver');
-    const GooglePlayMusicReceiverAdapter = require('./lib/GooglePlayMusicReceiverAdapter');
     const GooglePlayMoviesReceiver = require('./lib/GooglePlayMoviesReceiver');
     const GooglePlayMoviesReceiverAdapter = require('./lib/GooglePlayMoviesReceiverAdapter');
     const SpotifyReceiver = require('./lib/SpotifyReceiver');
     const SpotifyReceiverAdapter = require('./lib/SpotifyReceiverAdapter');
-    const YouTubeReceiver = require('./lib/YouTubeReceiver');
-    const YouTubeReceiverAdapter = require('./lib/YouTubeReceiverAdapter');
     const TuneInReceiver = require('./lib/TuneInReceiver');
     const TuneInReceiverAdapter = require('./lib/TuneInReceiverAdapter');
+    const YouTubeReceiver = require('./lib/YouTubeReceiver');
+    const YouTubeReceiverAdapter = require('./lib/YouTubeReceiverAdapter');
+    const YouTubeMusicReceiver = require('./lib/YouTubeMusicReceiver');
+    const YouTubeMusicReceiverAdapter = require('./lib/YouTubeMusicReceiverAdapter');
 
     function CastV2ConnectionNode(config) {
         RED.nodes.createNode(this, config);
@@ -374,7 +374,7 @@ module.exports = function(RED) {
         // Internal state
         this.supportedApplications = [
             DefaultMediaReceiver,
-            GooglePlayMusicReceiver,
+            YouTubeMusicReceiver,
             GooglePlayMoviesReceiver,
             SpotifyReceiver,
             YouTubeReceiver,
@@ -467,17 +467,17 @@ module.exports = function(RED) {
                 case GooglePlayMoviesReceiver.APP_ID:
                     return GooglePlayMoviesReceiverAdapter;
                     break;
-                case GooglePlayMusicReceiver.APP_ID:
-                    return GooglePlayMusicReceiverAdapter;
-                    break;
                 case SpotifyReceiver.APP_ID:
                     return SpotifyReceiverAdapter;
                     break;
-                case YouTubeReceiver.APP_ID:
-                    return YouTubeReceiverAdapter;
-                    break;
                 case TuneInReceiver.APP_ID:
                     return TuneInReceiverAdapter;
+                    break;
+                case YouTubeMusicReceiver.APP_ID:
+                    return YouTubeMusicReceiverAdapter;
+                    break;
+                case YouTubeReceiver.APP_ID:
+                    return YouTubeReceiverAdapter;
                     break;
                 default:
                     return null;
@@ -496,17 +496,17 @@ module.exports = function(RED) {
                 case "GooglePlayMovies":
                     return GooglePlayMoviesReceiver;
                     break;
-                case "GooglePlayMusic":
-                    return GooglePlayMusicReceiver;
-                    break;
                 case "Spotify":
                     return SpotifyReceiver;
+                    break;
+                case "TuneIn":
+                    return TuneInReceiver;
                     break;
                 case "YouTube":
                     return YouTubeReceiver;
                     break;
-                case "TuneIn":
-                    return TuneInReceiver;
+                case "YouTubeMusic":
+                    return YouTubeMusicReceiver;
                     break;
                 default:
                     return null;
