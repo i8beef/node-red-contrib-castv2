@@ -156,11 +156,8 @@ module.exports = function(RED) {
          */
         this.disconnect = function() {
             if (node.connected || node.connecting) {
-                try {
-                    node.client.close();
-                } catch (exception) {
-                    // Swallow close exceptions
-                }
+                // Ignore errors
+                try { node.client.close(); } catch (exception) { }
             }
 
             // Reset client
@@ -419,7 +416,8 @@ module.exports = function(RED) {
             node.adapter = null;
 
             if (node.receiver != null) {
-                node.receiver.close();
+                // Ignore errors
+                try { node.receiver.close(); } catch (e) { }
                 node.receiver = null;
             }
 
@@ -696,7 +694,8 @@ module.exports = function(RED) {
                             node.adapter = null;
 
                             if (node.receiver != null) {
-                                node.receiver.close();
+                                // Ignore errors
+                                try { node.receiver.close(); } catch (e) { }
                                 node.receiver = null;
                             }
 
