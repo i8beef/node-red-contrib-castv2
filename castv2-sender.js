@@ -10,6 +10,8 @@ module.exports = function(RED) {
     const DefaultMediaReceiverAdapter = require('./lib/DefaultMediaReceiverAdapter');
     const GooglePlayMoviesReceiver = require('./lib/GooglePlayMoviesReceiver');
     const GooglePlayMoviesReceiverAdapter = require('./lib/GooglePlayMoviesReceiverAdapter');
+    const NetflixReceiver = require('./lib/NetflixReceiver');
+    const NetflixReceiverAdapter = require('./lib/NetflixReceiverAdapter');
     const SpotifyReceiver = require('./lib/SpotifyReceiver');
     const SpotifyReceiverAdapter = require('./lib/SpotifyReceiverAdapter');
     const TuneInReceiver = require('./lib/TuneInReceiver');
@@ -371,11 +373,12 @@ module.exports = function(RED) {
         // Internal state
         this.supportedApplications = [
             DefaultMediaReceiver,
-            YouTubeMusicReceiver,
             GooglePlayMoviesReceiver,
+            NetflixReceiver,
             SpotifyReceiver,
+            TuneInReceiver,
             YouTubeReceiver,
-            TuneInReceiver
+            YouTubeMusicReceiver
         ];
 
         this.receiver = null;
@@ -465,6 +468,9 @@ module.exports = function(RED) {
                 case GooglePlayMoviesReceiver.APP_ID:
                     return GooglePlayMoviesReceiverAdapter;
                     break;
+                case NetflixReceiver.APP_ID:
+                    return NetflixReceiverAdapter;
+                    break;
                 case SpotifyReceiver.APP_ID:
                     return SpotifyReceiverAdapter;
                     break;
@@ -493,6 +499,9 @@ module.exports = function(RED) {
                     break;
                 case "GooglePlayMovies":
                     return GooglePlayMoviesReceiver;
+                    break;
+                case "Netflix":
+                    return NetflixReceiver;
                     break;
                 case "Spotify":
                     return SpotifyReceiver;
