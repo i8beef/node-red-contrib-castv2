@@ -14,6 +14,7 @@ This assumes you have [node-red](http://nodered.org/) already installed and work
 $ cd ~/.node-red
 $ npm install node-red-contrib-castv2
 ```
+
 ## Usage
 
 This package provides a single node, `castv2-sender`, which will be under the "castv2" group in the pallete. The node requires a configured connection, and allows for setting additional settings like authentication for supported cast applications. The node will output the current google cast device platform state or cast application state on published state changes.
@@ -42,18 +43,14 @@ To use mDNS in Docker containers, the node-red instance must either be started w
 docker run --restart=always --name mdns-bridge -dit --net=host wquist/mdns-bridge:latest <HOSTINTERFACE>
 ```
 
-### Supported Applications
+## Command Types
 
-This node supported a couple of applications with room to grow. This allows it to launch, join active sessions, and control these cast applications in addition to the DefaultMediaReceiver. To control application specific commands (see platform / media commands below for other types), and "app" must be specified on the command to ensure the right application is either joined or launched first. The following applications are supported, and examples can be found below for the message structures sepcific to them:
+There are three "types" of commands supported by this node: Platform, Media, and App specific.
 
 <ul>
-  <li>DefaultMediaReceiver</li>
-  <li>GogolePlayMovies - media control only</li>
-  <li>Netflix - media control only</li>
-  <li>Spotify - media control only</li>
-  <li>TuneIn - media control only</li>
-  <li>YouTube</li>
-  <li>YouTube Music</li>
+  <li>Platform - Commands for the cast device itself, such as launching/closing apps, volume control, etc.</li>
+  <li>Media - Generic media commands like PLAY, PAUSE, etc.</li>
+  <li>App specific - Cast app specific commands, requiring specific implementation within this node to support.</li>
 </ul>
 
 ### Platform Command Example
@@ -126,6 +123,16 @@ do not need to include an app with these as the node will attempt to join any ac
   }
 }
 ```
+
+### Supported Applications
+
+This node supports a few applications for app specific commands. The `DefaultMediaReceiver` is the generic media playing app available on all cast devices, to be used when loading audio, video, etc., to play directly. Other supported applications allow for partial control of app specific commands for that application running on the cast device.
+
+<ul>
+  <li>DefaultMediaReceiver</li>
+  <li>Spotify - beta, help wanted</li>
+  <li>YouTube</li>
+</ul>
 
 ### DefaultMediaReceiver Command Example
 

@@ -8,18 +8,12 @@ module.exports = function(RED) {
 
     const DefaultMediaReceiver = require('./lib/DefaultMediaReceiver');
     const DefaultMediaReceiverAdapter = require('./lib/DefaultMediaReceiverAdapter');
-    const GooglePlayMoviesReceiver = require('./lib/GooglePlayMoviesReceiver');
-    const GooglePlayMoviesReceiverAdapter = require('./lib/GooglePlayMoviesReceiverAdapter');
-    const NetflixReceiver = require('./lib/NetflixReceiver');
-    const NetflixReceiverAdapter = require('./lib/NetflixReceiverAdapter');
+    const GenericMediaReceiver = require('./lib/GenericMediaReceiver');
+    const GenericMediaReceiverAdapter = require('./lib/GenericMediaReceiverAdapter');
     const SpotifyReceiver = require('./lib/SpotifyReceiver');
     const SpotifyReceiverAdapter = require('./lib/SpotifyReceiverAdapter');
-    const TuneInReceiver = require('./lib/TuneInReceiver');
-    const TuneInReceiverAdapter = require('./lib/TuneInReceiverAdapter');
     const YouTubeReceiver = require('./lib/YouTubeReceiver');
     const YouTubeReceiverAdapter = require('./lib/YouTubeReceiverAdapter');
-    const YouTubeMusicReceiver = require('./lib/YouTubeMusicReceiver');
-    const YouTubeMusicReceiverAdapter = require('./lib/YouTubeMusicReceiverAdapter');
 
     function CastV2ConnectionNode(config) {
         RED.nodes.createNode(this, config);
@@ -136,16 +130,21 @@ module.exports = function(RED) {
             for (let id in node.registeredNodes) {
                 if (node.registeredNodes.hasOwnProperty(id)) {
                     let activeSession = null;
+                    let mediaSupportingApp = null;
                     let castV2App = null;
                     if (node.platformStatus.applications) {
                         activeSession = node.platformStatus.applications.find(session => node.registeredNodes[id].supportedApplications.some(supportedApp => supportedApp.APP_ID === session.appId));
                         if (activeSession) {
                             castV2App = node.registeredNodes[id].supportedApplications.find(supportedApp => supportedApp.APP_ID === activeSession.appId);
+                        } else {
+                            mediaSupportingApp = node.platformStatus.applications.find(session => session.namespaces.some(namespace => namespace.name === 'urn:x-cast:com.google.cast.media'));
                         }
                     }
 
                     if (activeSession && castV2App) {
                         node.registeredNodes[id].join(activeSession, castV2App);
+                    } else if (mediaSupportingApp) {
+                        node.registeredNodes[id].join(mediaSupportingApp, GenericMediaReceiver);
                     } else {
                         node.registeredNodes[id].unjoin();
                     }
@@ -373,12 +372,8 @@ module.exports = function(RED) {
         // Internal state
         this.supportedApplications = [
             DefaultMediaReceiver,
-            GooglePlayMoviesReceiver,
-            NetflixReceiver,
             SpotifyReceiver,
-            TuneInReceiver,
-            YouTubeReceiver,
-            YouTubeMusicReceiver
+            YouTubeReceiver
         ];
 
         this.receiver = null;
@@ -465,20 +460,11 @@ module.exports = function(RED) {
                 case DefaultMediaReceiver.APP_ID:
                     return DefaultMediaReceiverAdapter;
                     break;
-                case GooglePlayMoviesReceiver.APP_ID:
-                    return GooglePlayMoviesReceiverAdapter;
-                    break;
-                case NetflixReceiver.APP_ID:
-                    return NetflixReceiverAdapter;
+                case GenericMediaReceiver.APP_ID:
+                    return GenericMediaReceiverAdapter;
                     break;
                 case SpotifyReceiver.APP_ID:
                     return SpotifyReceiverAdapter;
-                    break;
-                case TuneInReceiver.APP_ID:
-                    return TuneInReceiverAdapter;
-                    break;
-                case YouTubeMusicReceiver.APP_ID:
-                    return YouTubeMusicReceiverAdapter;
                     break;
                 case YouTubeReceiver.APP_ID:
                     return YouTubeReceiverAdapter;
@@ -497,23 +483,11 @@ module.exports = function(RED) {
                 case "DefaultMediaReceiver":
                     return DefaultMediaReceiver;
                     break;
-                case "GooglePlayMovies":
-                    return GooglePlayMoviesReceiver;
-                    break;
-                case "Netflix":
-                    return NetflixReceiver;
-                    break;
                 case "Spotify":
                     return SpotifyReceiver;
                     break;
-                case "TuneIn":
-                    return TuneInReceiver;
-                    break;
                 case "YouTube":
                     return YouTubeReceiver;
-                    break;
-                case "YouTubeMusic":
-                    return YouTubeMusicReceiver;
                     break;
                 default:
                     return null;
