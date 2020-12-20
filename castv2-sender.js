@@ -133,11 +133,13 @@ module.exports = function(RED) {
                     let mediaSupportingApp = null;
                     let castV2App = null;
                     if (node.platformStatus.applications) {
-                        activeSession = node.platformStatus.applications.find(session => node.registeredNodes[id].supportedApplications.some(supportedApp => supportedApp.APP_ID === session.appId));
+                        activeSession = node.platformStatus.applications
+                            .find(session => node.registeredNodes[id].supportedApplications.some(supportedApp => supportedApp.APP_ID === session.appId));
                         if (activeSession) {
                             castV2App = node.registeredNodes[id].supportedApplications.find(supportedApp => supportedApp.APP_ID === activeSession.appId);
                         } else {
-                            mediaSupportingApp = node.platformStatus.applications.find(session => session.namespaces.some(namespace => namespace.name === 'urn:x-cast:com.google.cast.media'));
+                            mediaSupportingApp = node.platformStatus.applications
+                                .find(session => session.namespaces != null && session.namespaces.some(namespace => namespace.name === 'urn:x-cast:com.google.cast.media'));
                         }
                     }
 
