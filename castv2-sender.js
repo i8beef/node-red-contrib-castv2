@@ -590,12 +590,24 @@ module.exports = function(RED) {
                                 return node.receiver.stopAsync();
                                 break;
                             case "QUEUE_NEXT":
-                                if (status.supportedMediaCommands & 64) {
+                                // bypass check as workaround of a google issue that does not add
+                                // the QUEUE_NEXT bit in supportedMediaCommands for DefaultMediaReceiver
+                                // https://issuetracker.google.com/issues/139939455
+                                let bypassCheckNext = 
+                                    node.receiver.session.appId === DefaultMediaReceiver.APP_ID 
+                                    && status.items.length > 1;
+                                if (bypassCheckNext || status.supportedMediaCommands & 64) {
                                     return node.receiver.queueNextAsync();
                                 }
                                 break;
                             case "QUEUE_PREV":
-                                if (status.supportedMediaCommands & 128) {
+                                // bypass check as workaround of a google issue that does not add
+                                // the QUEUE_PREV bit in supportedMediaCommands for DefaultMediaReceiver
+                                // https://issuetracker.google.com/issues/139939455
+                                let bypassCheckPrev = 
+                                    node.receiver.session.appId === DefaultMediaReceiver.APP_ID 
+                                    && status.items.length > 1;
+                                if (bypassCheckPrev || status.supportedMediaCommands & 128) {
                                     return node.receiver.queuePrevAsync();
                                 }
                                 break;
