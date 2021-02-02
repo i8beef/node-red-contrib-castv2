@@ -10,8 +10,6 @@ module.exports = function(RED) {
     const DefaultMediaReceiverAdapter = require('./lib/DefaultMediaReceiverAdapter');
     const GenericMediaReceiver = require('./lib/GenericMediaReceiver');
     const GenericMediaReceiverAdapter = require('./lib/GenericMediaReceiverAdapter');
-    const SpotifyReceiver = require('./lib/SpotifyReceiver');
-    const SpotifyReceiverAdapter = require('./lib/SpotifyReceiverAdapter');
     const YouTubeReceiver = require('./lib/YouTubeReceiver');
     const YouTubeReceiverAdapter = require('./lib/YouTubeReceiverAdapter');
 
@@ -363,18 +361,9 @@ module.exports = function(RED) {
         this.connection = config.connection;
         this.clientNode = RED.nodes.getNode(this.connection);
 
-        this.settings = {
-            spotify: {
-                accessToken: config.spotifyAccessToken,
-                accessTokenExpiration: config.spotifyAccessTokenExpiration,
-                deviceName: config.spotifyDeviceName
-            }
-        };
-
         // Internal state
         this.supportedApplications = [
             DefaultMediaReceiver,
-            SpotifyReceiver,
             YouTubeReceiver
         ];
 
@@ -465,9 +454,6 @@ module.exports = function(RED) {
                 case GenericMediaReceiver.APP_ID:
                     return GenericMediaReceiverAdapter;
                     break;
-                case SpotifyReceiver.APP_ID:
-                    return SpotifyReceiverAdapter;
-                    break;
                 case YouTubeReceiver.APP_ID:
                     return YouTubeReceiverAdapter;
                     break;
@@ -484,9 +470,6 @@ module.exports = function(RED) {
             switch (command.app) {
                 case "DefaultMediaReceiver":
                     return DefaultMediaReceiver;
-                    break;
-                case "Spotify":
-                    return SpotifyReceiver;
                     break;
                 case "YouTube":
                     return YouTubeReceiver;

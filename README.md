@@ -130,7 +130,6 @@ This node supports a few applications for app specific commands. The `DefaultMed
 
 <ul>
   <li>DefaultMediaReceiver</li>
-  <li>Spotify - beta, help wanted</li>
   <li>YouTube</li>
 </ul>
 
