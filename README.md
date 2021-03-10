@@ -130,6 +130,7 @@ This node supports a few applications for app specific commands. The `DefaultMed
 
 <ul>
   <li>DefaultMediaReceiver</li>
+  <li>DashCast</li>
   <li>YouTube</li>
 </ul>
 
@@ -194,6 +195,29 @@ The metadata object is optional, and is a straight pass through of Google's [met
     metadata: { // optional unless desired, follows normal metadata rules noted above
       title: "Media title"
     }
+  }
+}
+```
+
+### DashCast Command Example
+
+These are the commands exposed by CashCast receiver. The "app" is required on these commands.
+
+
+| Command         | Example                                                          |
+|-----------------|------------------------------------------------------------------|
+| LOAD            | Load a single url                                                |
+
+#### LOAD Example
+
+Loads media for YouTube.
+
+```js
+{
+  payload: {
+    app: "DashCast",
+    type: "LOAD",
+    url: "http://www.google.com"
   }
 }
 ```

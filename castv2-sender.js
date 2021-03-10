@@ -8,6 +8,8 @@ module.exports = function(RED) {
 
     const DefaultMediaReceiver = require('./lib/DefaultMediaReceiver');
     const DefaultMediaReceiverAdapter = require('./lib/DefaultMediaReceiverAdapter');
+    const DashCastReceiver = require('./lib/DashCastReceiver');
+    const DashCastReceiverAdapter = require('./lib/DashCastReceiverAdapter');
     const GenericMediaReceiver = require('./lib/GenericMediaReceiver');
     const GenericMediaReceiverAdapter = require('./lib/GenericMediaReceiverAdapter');
     const YouTubeReceiver = require('./lib/YouTubeReceiver');
@@ -364,6 +366,7 @@ module.exports = function(RED) {
         // Internal state
         this.supportedApplications = [
             DefaultMediaReceiver,
+            DashCastReceiver,
             YouTubeReceiver
         ];
 
@@ -421,7 +424,9 @@ module.exports = function(RED) {
             node.receiver = node.adapter.initReceiver(node, receiver);
 
             node.receiver.on("status", function(status) {
-                node.send({ payload: status });
+                if (status) {
+                    node.send({ payload: status });
+                }
             });
 
             node.receiver.once("close", function() {
@@ -437,8 +442,6 @@ module.exports = function(RED) {
                 .then(status => {
                     if (status) {
                         node.send({ payload: status });
-                    } else {
-                        node.send({ payload: null });
                     }
                 });
         };
@@ -453,6 +456,9 @@ module.exports = function(RED) {
                     break;
                 case GenericMediaReceiver.APP_ID:
                     return GenericMediaReceiverAdapter;
+                    break;
+                case DashCastReceiver.APP_ID:
+                    return DashCastReceiverAdapter;
                     break;
                 case YouTubeReceiver.APP_ID:
                     return YouTubeReceiverAdapter;
@@ -470,6 +476,9 @@ module.exports = function(RED) {
             switch (command.app) {
                 case "DefaultMediaReceiver":
                     return DefaultMediaReceiver;
+                    break;
+                case "DashCast":
+                    return DashCastReceiver;
                     break;
                 case "YouTube":
                     return YouTubeReceiver;
