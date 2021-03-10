@@ -217,7 +217,9 @@ Loads media for YouTube.
   payload: {
     app: "DashCast",
     type: "LOAD",
-    url: "http://www.google.com"
+    url: "http://www.google.com",
+    force: true, // optional, forces allow touch input mode
+    reload: 0 // optional, auto reload mode
   }
 }
 ```
