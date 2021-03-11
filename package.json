@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-castv2",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "description": "",
   "main": "castv2-sender.js",
   "scripts": {

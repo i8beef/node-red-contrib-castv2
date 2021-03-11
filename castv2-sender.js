@@ -6,6 +6,7 @@ module.exports = function(RED) {
     const Client = require('castv2-client').Client;
     const Bonjour = require('bonjour');
 
+    const MediaReceiverBase = require('./lib/MediaReceiverBase');
     const DefaultMediaReceiver = require('./lib/DefaultMediaReceiver');
     const DefaultMediaReceiverAdapter = require('./lib/DefaultMediaReceiverAdapter');
     const DashCastReceiver = require('./lib/DashCastReceiver');
@@ -438,12 +439,14 @@ module.exports = function(RED) {
             node.status({ fill: "green", shape: "dot", text: "joined" });
 
             // Send initial receiver state
-            node.receiver.getStatusAsync()
+            if (typeof node.receiver.getStatusAsync === "function") {
+                node.receiver.getStatusAsync()
                 .then(status => {
                     if (status) {
                         node.send({ payload: status });
                     }
                 });
+            }
         };
 
         /*
@@ -506,6 +509,11 @@ module.exports = function(RED) {
                     }
 
                     throw new Error("No active receiver application");
+                }
+
+                // Ensure the receiver supports media commands
+                if (!(node.receiver instanceof MediaReceiverBase)) {
+                    throw new Error("Receiver does not support media commands");
                 }
 
                 return node.sendMediaCommandAsync(command);
