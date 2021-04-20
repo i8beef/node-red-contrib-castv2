@@ -43,6 +43,13 @@ To use mDNS in Docker containers, the node-red instance must either be started w
 docker run --restart=always --name mdns-bridge -dit --net=host wquist/mdns-bridge:latest <HOSTINTERFACE>
 ```
 
+If you are using ARM/V6-architecture you could use the following Docker image:
+```
+docker run --restart=always --name mdns-bridge -dit --net=host monstrenyatko/mdns-repeater:latest --env MDNS_REPEATER_INTERFACES="eth0 docker0"
+```
+if eth0 is you're hostinterface and docker0 is you're dockerinterface.
+
+
 ## Command Types
 
 There are three "types" of commands supported by this node: Platform, Media, and App specific.
