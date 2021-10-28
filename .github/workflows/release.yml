@@ -1,0 +1,92 @@
+name: release
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+env:
+  NODEVERSION: "12"
+  NODEREGISTRY: "https://registry.npmjs.org"
+  APP: "node-red-contrib-castv2"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Setup node
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ env.NODEVERSION }}
+          registry-url: ${{ env.NODEREGISTRY }}
+
+      - name: Get version
+        id: version
+        uses: battila7/get-version-action@v2
+
+      - name: Get previous release tag
+        id: previousTag
+        uses: sammcoe/get-previous-release-action@v1.0.3
+
+      - name: Run NPM Install
+        run: npm install
+
+      - name: Set version
+        run: npm --no-git-tag version ${{ steps.version.outputs.version-without-v }}
+
+      - name: Build package
+        run: npm pack
+
+      - name: Upload app build artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.APP }}-${{ steps.version.outputs.version-without-v }}
+          path: ${{ env.APP }}-${{ steps.version.outputs.version-without-v }}.tgz
+
+      - name: Build changelog
+        id: gitLog
+        uses: jarrodparkes/git-log-action@1.0.0
+        with:
+          start: ${{ steps.previousTag.outputs.tag }}
+          end: ${{ github.ref }}
+
+      - name: GitHub release
+        uses: actions/create-release@v1
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          release_name: ${{ steps.version.outputs.version-without-v }}
+          tag_name: ${{ github.ref }}
+          body: ${{ env.LOG }}
+          draft: false
+          prerelease: false
+
+      - name: GitHub release assets
+        uses: actions/upload-release-asset@v1
+        id: release_assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.release.outputs.upload_url }}
+          asset_path: ${{ env.APP }}-${{ steps.version.outputs.version-without-v }}.tgz
+          asset_name: ${{ env.APP }}-${{ steps.version.outputs.version-without-v }}.tgz
+          asset_content_type: application/gzip
+
+      - name: Publish
+        id: publish
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - if: steps.publish.outputs.type != 'none'
+        name: Update Node-Red flow-library
+        uses: Zehir/update-package-node-red-flow-library-action@v1.0.5
+        continue-on-error: true
+        with:
+          package-name: ${{ env.APP }}
