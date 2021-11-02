@@ -4,7 +4,6 @@ module.exports = function(RED) {
     const net = require('net');
 
     const Client = require('castv2-client').Client;
-    const Bonjour = require('bonjour');
 
     const MediaReceiverBase = require('./lib/MediaReceiverBase');
     const DefaultMediaReceiver = require('./lib/DefaultMediaReceiver');
@@ -160,13 +159,10 @@ module.exports = function(RED) {
          */
         this.disconnect = function() {
             if (node.connected || node.connecting) {
-                // Ignore errors
                 try { node.client.close(); } catch (exception) { }
             }
 
-            // Reset client
-            node.client = null;
-            node.platformStatus = null;
+            // Set connection status
             node.connected = false;
             node.connecting = false;
 
@@ -177,6 +173,10 @@ module.exports = function(RED) {
                 }
             }
 
+            // Reset client
+            node.client = null;
+            node.platformStatus = null;
+            
             node.setStatusOfRegisteredNodes({ fill: "red", shape: "ring", text: "disconnected" });
         };
 
@@ -219,12 +219,17 @@ module.exports = function(RED) {
                     node.client.setVolumeAsync = util.promisify(node.client.setVolume);
                     node.client.stopAsync = util.promisify(node.client.stop);
 
+                    // Register secondary error handler
+                    node.client.on("error", function(error) {
+                        console.log(error);
+                    });
+
                     // Register error handler
                     node.client.once("error", function(error) {
                         node.disconnect();
                         node.reconnect();
                     });
-
+                    
                     // Register disconnect handlers
                     node.client.client.once("close", function() {
                         node.disconnect();
@@ -284,7 +289,7 @@ module.exports = function(RED) {
                             console.log(error);
                             node.disconnect();
                             node.reconnect();
-                         });
+                        });
                 } catch (exception) { console.log(exception); }
             }
         };
@@ -409,7 +414,6 @@ module.exports = function(RED) {
             node.adapter = null;
 
             if (node.receiver != null) {
-                // Ignore errors
                 try { node.receiver.close(); } catch (e) { }
                 node.receiver = null;
             }
@@ -691,7 +695,6 @@ module.exports = function(RED) {
                             node.adapter = null;
 
                             if (node.receiver != null) {
-                                // Ignore errors
                                 try { node.receiver.close(); } catch (e) { }
                                 node.receiver = null;
                             }
