@@ -526,7 +526,7 @@ module.exports = function(RED) {
                 let castV2App = node.getCommandApp(command);
 
                 // If no active receiver, launch and try again
-                if (!node.receiver || !node.adapter || node.receiver.APP_ID !== castV2App.APP_ID) {
+                if (!node.receiver || !node.adapter || !(node.receiver instanceof castV2App)) {
                     node.launching = true;
 
                     return node.clientNode.launchAsync(castV2App)
