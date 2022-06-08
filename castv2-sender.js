@@ -2,6 +2,7 @@ module.exports = function(RED) {
     "use strict";
     const util = require('util');
     const net = require('net');
+    const BonjourService = require('bonjour-service');
 
     const Client = require('castv2-client').Client;
 
@@ -735,7 +736,7 @@ module.exports = function(RED) {
     function discoverCastTargetsAsync() {
         return new Promise((resolve, reject) => {
             try {
-                const bonjour = require('bonjour')();
+                const bonjour = new BonjourService.Bonjour();
                 const castTargets = [];
                 const bonjourBrowser = bonjour.find(
                     { type: 'googlecast' },

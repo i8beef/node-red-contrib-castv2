@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-castv2",
-  "version": "4.1.1",
+  "version": "4.2.0",
   "description": "",
   "main": "castv2-sender.js",
   "scripts": {
@@ -26,7 +26,7 @@
   },
   "homepage": "https://github.com/i8beef/node-red-contrib-castv2#readme",
   "dependencies": {
-    "bonjour": "^3.5.0",
+    "bonjour-service": "^1.0.12",
     "castv2-client": "^1.2.0",
     "request": "^2.88.2"
   },
