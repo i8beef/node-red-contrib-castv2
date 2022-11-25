@@ -217,7 +217,7 @@ These are the commands exposed by CashCast receiver. The "app" is required on th
 
 #### LOAD Example
 
-Loads media for YouTube.
+Loads a URL on the cast target.
 
 ```js
 {
