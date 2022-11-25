@@ -30,6 +30,7 @@ module.exports = function(RED) {
         // Connection state
         this.connected = false;
         this.connecting = false;
+        this.connectedIp = null;
         this.closing = false;
 
         // Nodes subscribed to this connection
@@ -112,6 +113,7 @@ module.exports = function(RED) {
          * Call send() on all registered nodes
          */
         this.sendToRegisteredNodes = function(msg) {
+            RED.util.setMessageProperty(msg, "_castTarget", node.connectedIp);
             for (let id in node.registeredNodes) {
                 if (node.registeredNodes.hasOwnProperty(id)) {
                     node.registeredNodes[id].send(msg);
@@ -164,6 +166,7 @@ module.exports = function(RED) {
             }
 
             // Set connection status
+            node.connectedIp = null;
             node.connected = false;
             node.connecting = false;
 
@@ -266,6 +269,7 @@ module.exports = function(RED) {
                             }
                         })
                         .then(connectOptions => {
+                            node.connectedIp = connectOptions.host;
                             return node.client.connectAsync(connectOptions);
                         })
                         .then(() => {
@@ -431,7 +435,8 @@ module.exports = function(RED) {
 
             node.receiver.on("status", function(status) {
                 if (status) {
-                    node.send({ payload: status });
+                    const msg = { _castTarget: node.clientNode.connectedIp, payload: status };
+                    node.send(msg);
                 }
             });
 
@@ -448,7 +453,8 @@ module.exports = function(RED) {
                 node.receiver.getStatusAsync()
                 .then(status => {
                     if (status) {
-                        node.send({ payload: status });
+                        const msg = { _castTarget: node.clientNode.connectedIp, payload: status };
+                        node.send(msg);
                     }
                 });
             }
@@ -675,9 +681,13 @@ module.exports = function(RED) {
                             // Handle solicited messages
                             status = status || null;
                             if (msg.payload.type === "GET_CAST_STATUS" || msg.payload.type === "GET_VOLUME") {
-                                node.send({ platform: status });
+                                RED.util.setMessageProperty(msg, "_castTarget", node.clientNode.connectedIp);
+                                RED.util.setMessageProperty(msg, "platform", status);
+                                send(msg);
                             } else if (msg.payload.type === "GET_STATUS") {
-                                node.send({ payload: status });
+                                RED.util.setMessageProperty(msg, "_castTarget", node.clientNode.connectedIp);
+                                RED.util.setMessageProperty(msg, "platform", status);
+                                send(msg);
                             }
 
                             if (done) done();
