@@ -5,7 +5,7 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+"
 
 env:
-  NODEVERSION: "12"
+  NODEVERSION: "16"
   NODEREGISTRY: "https://registry.npmjs.org"
   APP: "node-red-contrib-castv2"
 
@@ -14,24 +14,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: master
           fetch-depth: 0
 
       - name: Setup node
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODEVERSION }}
           registry-url: ${{ env.NODEREGISTRY }}
 
       - name: Get version
         id: version
-        uses: battila7/get-version-action@v2
+        run: echo "version-without-v=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
       - name: Get previous release tag
         id: previousTag
-        uses: sammcoe/get-previous-release-action@v1.0.3
+        run: |
+          PREV_REV=$(git rev-list --tags --max-count=1 --skip=1 --no-walk)
+          PREV_TAG=$(git describe --tags ${PREV_REV})
+          echo "tag=${PREV_TAG}" >> $GITHUB_OUTPUT
 
       - name: Run NPM Install
         run: npm install
@@ -43,40 +46,16 @@ jobs:
         run: npm pack
 
       - name: Upload app build artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ env.APP }}-${{ steps.version.outputs.version-without-v }}
           path: ${{ env.APP }}-${{ steps.version.outputs.version-without-v }}.tgz
 
-      - name: Build changelog
-        id: gitLog
-        uses: jarrodparkes/git-log-action@1.0.0
-        with:
-          start: ${{ steps.previousTag.outputs.tag }}
-          end: ${{ github.ref }}
-
       - name: GitHub release
-        uses: actions/create-release@v1
         id: release
+        run: gh release create ${{ github.ref }} "${{ env.APP }}-${{ steps.version.outputs.version-without-v }}.tgz" -t "${{ steps.version.outputs.version-without-v }}" --generate-notes --notes-start-tag ${{ steps.previousTag.outputs.tag }} 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          release_name: ${{ steps.version.outputs.version-without-v }}
-          tag_name: ${{ github.ref }}
-          body: ${{ env.LOG }}
-          draft: false
-          prerelease: false
-
-      - name: GitHub release assets
-        uses: actions/upload-release-asset@v1
-        id: release_assets
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.release.outputs.upload_url }}
-          asset_path: ${{ env.APP }}-${{ steps.version.outputs.version-without-v }}.tgz
-          asset_name: ${{ env.APP }}-${{ steps.version.outputs.version-without-v }}.tgz
-          asset_content_type: application/gzip
 
       - name: Publish
         id: publish
