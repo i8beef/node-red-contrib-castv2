@@ -435,7 +435,11 @@ module.exports = function(RED) {
 
             node.receiver.on("status", function(status) {
                 if (status) {
-                    const msg = { _castTarget: node.clientNode.connectedIp, payload: status };
+                    const msg = {
+                        _castTarget: node.clientNode.connectedIp,
+                        platform: node.clientNode.platformStatus,
+                        payload: status
+                    };
                     node.send(msg);
                 }
             });
@@ -453,7 +457,11 @@ module.exports = function(RED) {
                 node.receiver.getStatusAsync()
                 .then(status => {
                     if (status) {
-                        const msg = { _castTarget: node.clientNode.connectedIp, payload: status };
+                        const msg = {
+                            _castTarget: node.clientNode.connectedIp,
+                            platform: node.clientNode.platformStatus,
+                            payload: status
+                        };
                         node.send(msg);
                     }
                 });
@@ -686,7 +694,8 @@ module.exports = function(RED) {
                                 send(msg);
                             } else if (msg.payload.type === "GET_STATUS") {
                                 RED.util.setMessageProperty(msg, "_castTarget", node.clientNode.connectedIp);
-                                RED.util.setMessageProperty(msg, "platform", status);
+                                RED.util.setMessageProperty(msg, "platform", node.clientNode.platformStatus);
+                                RED.util.setMessageProperty(msg, "payload", status);
                                 send(msg);
                             }
 
